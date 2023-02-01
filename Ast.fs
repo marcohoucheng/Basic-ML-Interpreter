@@ -53,7 +53,7 @@ let (|TyBool|_|) = (|TyLit|_|) "bool"
 let (|TyUnit|_|) = (|TyLit|_|) "unit"
 
 
-type scheme = Forall of tyvar list * ty // list is alpha_bar
+type scheme = Forall of tyvar Set * ty // list is alpha_bar
 
 // literals 
 type lit = LInt of int

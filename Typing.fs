@@ -22,15 +22,46 @@ let apply_subst (t : ty) (s : subst) : ty = t
 // TODO implement this
 let compose_subst (s1 : subst) (s2 : subst) : subst = s1 @ s2
 
+(*
 let rec freevars_ty (t : ty) : tyvar Set =
     match t with
     | TyName _ -> Set.empty
     | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
     | TyVar tv -> Set.singleton tv
     | TyTuple ts -> List.fold (fun set t -> Set.union set (freevars_ty t)) Set.empty ts 
+*)
+let rec freevars_ty t =
+    match t with
+    | TyName s -> Set.empty
+    | TyArrow (t1, t2) -> (freevars_ty t1) + (freevars_ty t2) // + union for sets
+    | TyVar tv -> Set.singleton tv
+    | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
+
+// no need to match, only one option
+// tvs is a list
+let freevars_scheme (Forall (tvs, t)) = freevars_ty t - tvs
+
+let freevars_scheme_env env =
+    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
+
+(*
+let rec freevars_ty t =
+    match t with
+    | TyName s -> Set.empty
+    | TyArrow (t1, t2) -> (freevars_ty t1) + (freevars_ty t2) // + union for sets
+    | TyVar tv -> Set.singleton tv
+    | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
+
+// no need to match, only one option
+// tvs is a list
+let freevars_scheme (Forall (tvs, t)) = freevars_ty t - (Set.ofList tvs)
+
+let rec freevars_scheme_env env =
+    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
 
 let freevars_scheme (Forall (tvs, t)) =
     Set.difference (freevars_ty t) (Set.ofList tvs)
+*)
 
 // type inference
 //
@@ -43,7 +74,34 @@ let gamma0 = [
 
 // TODO for exam
 let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
-    failwith "not implemented"
+    match e with
+    // | Lit (Lint _) -> TyInt, subst Empty _ integer
+    | Lit (LInt _) -> TyInt, [] 
+    | Lit (LBool _) -> TyBool, []
+    | Lit (LFloat _) -> TyFloat, [] 
+    | Lit (LString _) -> TyString, []
+    | Lit (LChar _) -> TyChar, [] 
+    | Lit LUnit -> TyUnit, []
+
+    //9 Jan, top down style coding, start from big block to small block
+    | Let (x, tyo, e1, e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        // we haven't defined those functions below yet, define above in a minute
+        // _ty operates on ty, etc.
+        // No overloading in F#
+        // Assume 2 functions exist and they return the same type which - can be used
+        // freevars should return sets (so - can be used and easy to be implementated)
+        // set doesn't allow duplicates like maths
+        let tvs = freevars_ty t1 - freevars_scheme_env env // alpha_bar
+        let sch = Forall (tvs, t1) // sigma
+        let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
+        t2, compose_subst s2 s1
+        // Add unification
+
+    | _ -> failwithf "not implemented"
+
+    // Let uses generalisation
+    // Application uses unification
 
 
 // type checker
@@ -51,7 +109,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
     
 let rec typecheck_expr (env : ty env) (e : expr) : ty =
     match e with
-    | Lit (LInt _) -> TyInt
+    | Lit (LInt _) -> TyInt // _ means remove the "number"
     | Lit (LFloat _) -> TyFloat
     | Lit (LString _) -> TyString
     | Lit (LChar _) -> TyChar
@@ -59,13 +117,13 @@ let rec typecheck_expr (env : ty env) (e : expr) : ty =
     | Lit LUnit -> TyUnit
 
     | Var x ->
-        let _, t = List.find (fun (y, _) -> x = y) env
+        let _, t = List.find (fun (y, _) -> x = y) env (name, ty) // and we only care about the name
         t
 
     | Lambda (x, None, e) -> unexpected_error "typecheck_expr: unannotated lambda is not supported"
     
     | Lambda (x, Some t1, e) ->
-        let t2 = typecheck_expr ((x, t1) :: env) e
+        let t2 = typecheck_expr ((x, t1) :: env) e // e shadowed, use line L67 not 52
         TyArrow (t1, t2)
 
     | App (e1, e2) ->
@@ -80,9 +138,9 @@ let rec typecheck_expr (env : ty env) (e : expr) : ty =
     | Let (x, tyo, e1, e2) ->
         let t1 = typecheck_expr env e1
         match tyo with
-        | None -> ()
+        | None -> () // do nothing
         | Some t -> if t <> t1 then type_error "type annotation in let binding of %s is wrong: exptected %s, but got %s" x (pretty_ty t) (pretty_ty t1)
-        typecheck_expr ((x, t1) :: env) e2
+        typecheck_expr ((x, t1) :: env) e2 // extend the environment with type(x) = t1
 
     | IfThenElse (e1, e2, e3o) ->
         let t1 = typecheck_expr env e1
