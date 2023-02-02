@@ -14,22 +14,38 @@ let type_error fmt = throw_formatted TypeError fmt
 type subst = (tyvar * ty) list
 
 // TODO implement this
-let unify (t1 : ty) (t2 : ty) : subst = []
-
-// TODO implement this
-let apply_subst (t : ty) (s : subst) : ty = t
-
-// TODO implement this
 let compose_subst (s1 : subst) (s2 : subst) : subst = s1 @ s2
 
-(*
-let rec freevars_ty (t : ty) : tyvar Set =
+// TODO implement this
+let rec unify (t1 : ty) (t2 : ty) : subst = // []
+    match (t1, t2) with
+    | TyName s1, TyName s2 when s1 = s2 -> []
+    
+    | TyVar tv, t
+    | t, TyVar -> [tv, t]
+    
+    | TyArrow (t1, t2), TyArrow (t3, t4) -> compose_subst (unify t1 t3) (unify t2 t4)
+
+    | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
+        List.fold (fun s (t1, t2) -> compose_subst s (unify t1 t2)) [] (List.zip ts1 ts2)
+
+    | _ -> type_error "cannot unify types %O and %O" t1 t2
+
+// TODO implement this
+let rec apply_subst (s : subst) (t : ty) : ty = // t
     match t with
-    | TyName _ -> Set.empty
-    | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
-    | TyVar tv -> Set.singleton tv
-    | TyTuple ts -> List.fold (fun set t -> Set.union set (freevars_ty t)) Set.empty ts 
-*)
+    | TyName _ -> t
+    | TyArrow (t1, t2) -> TyArrow (apply_subst s t1, apply_subst s t2)
+
+    |TyVar tv ->
+        try
+            let _, t1 = List.find (fun (tv1, _) -> tv1 = tv) s
+            in
+                t1
+            with KeyNotFoundException -> t
+
+    | TyTuple ts -> TyTuple (List.map (apply_subst s) ts)
+
 let rec freevars_ty t =
     match t with
     | TyName s -> Set.empty
@@ -45,15 +61,13 @@ let freevars_scheme_env env =
     List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
 
 (*
-let rec freevars_ty t =
+let rec freevars_ty (t : ty) : tyvar Set =
     match t with
-    | TyName s -> Set.empty
-    | TyArrow (t1, t2) -> (freevars_ty t1) + (freevars_ty t2) // + union for sets
+    | TyName _ -> Set.empty
+    | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
     | TyVar tv -> Set.singleton tv
-    | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
+    | TyTuple ts -> List.fold (fun set t -> Set.union set (freevars_ty t)) Set.empty ts 
 
-// no need to match, only one option
-// tvs is a list
 let freevars_scheme (Forall (tvs, t)) = freevars_ty t - (Set.ofList tvs)
 
 let rec freevars_scheme_env env =
@@ -117,7 +131,7 @@ let rec typecheck_expr (env : ty env) (e : expr) : ty =
     | Lit LUnit -> TyUnit
 
     | Var x ->
-        let _, t = List.find (fun (y, _) -> x = y) env (name, ty) // and we only care about the name
+        let _, t = List.find (fun (y, _) -> x = y) env // (name, ty) and we only care about the name
         t
 
     | Lambda (x, None, e) -> unexpected_error "typecheck_expr: unannotated lambda is not supported"
