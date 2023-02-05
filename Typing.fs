@@ -13,52 +13,74 @@ let type_error fmt = throw_formatted TypeError fmt
 
 type subst = (tyvar * ty) list
 
-// TODO implement this
+let gamma0 = [
+    ("+", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
+    ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt))) 
+]
+
+// TODO: Composition
 let compose_subst (s1 : subst) (s2 : subst) : subst = s1 @ s2
 
-// TODO implement this
+// Unification (Done)
 let rec unify (t1 : ty) (t2 : ty) : subst = // []
     match (t1, t2) with
     | TyName s1, TyName s2 when s1 = s2 -> []
     
     | TyVar tv, t
-    | t, TyVar -> [tv, t]
+    | t, TyVar tv -> [tv, t]
     
     | TyArrow (t1, t2), TyArrow (t3, t4) -> compose_subst (unify t1 t3) (unify t2 t4)
 
     | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
         List.fold (fun s (t1, t2) -> compose_subst s (unify t1 t2)) [] (List.zip ts1 ts2)
 
+    | TyTuple ts1, TyTuple ts2 when List.length ts1 <> List.length ts2 ->
+        type_error "cannot unify tuples of different length, %O and %O" t1 t2
+
     | _ -> type_error "cannot unify types %O and %O" t1 t2
 
-// TODO implement this
+// Substitution
 let rec apply_subst (s : subst) (t : ty) : ty = // t
     match t with
     | TyName _ -> t
     | TyArrow (t1, t2) -> TyArrow (apply_subst s t1, apply_subst s t2)
 
-    |TyVar tv ->
+    | TyVar tv ->
         try
             let _, t1 = List.find (fun (tv1, _) -> tv1 = tv) s
             in
                 t1
-            with KeyNotFoundException -> t
+        with KeyNotFoundException -> t
 
     | TyTuple ts -> TyTuple (List.map (apply_subst s) ts)
 
+// Free variables
 let rec freevars_ty t =
     match t with
     | TyName s -> Set.empty
-    | TyArrow (t1, t2) -> (freevars_ty t1) + (freevars_ty t2) // + union for sets
     | TyVar tv -> Set.singleton tv
-    | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
+    | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
+    // | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
+    | TyTuple ts -> List.fold (fun r t -> Set.union r (freevars_ty t)) Set.empty ts
+
+    // ForAll: ftv(ForAll a_bar,gamma) -> ftv(gamma)\{a_bar}
+    | Forall (tvs, t) -> Set.difference (freevars_ty t) tvs
+    
+    | None -> Set.empty
+
+    // ftv(Gamma,(x:tau)) -> Set.union ftv(tau) ftv(Gamma)
+    | env -> None
 
 // no need to match, only one option
+// type scheme = Forall of tyvar Set * ty // list is alpha_bar
 // tvs is a list
-let freevars_scheme (Forall (tvs, t)) = freevars_ty t - tvs
+// let freevars_scheme (Forall (tvs, t)) = freevars_ty t - tvs
+let freevars_scheme (Forall (tvs, t)) = Set.difference (freevars_ty t) tvs
 
+// let freevars_scheme_env env =
+//    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
 let freevars_scheme_env env =
-    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
+    List.fold (fun r (_, sch) -> Set.union r (freevars_scheme sch)) Set.empty env
 
 (*
 let rec freevars_ty (t : ty) : tyvar Set =
@@ -80,11 +102,7 @@ let freevars_scheme (Forall (tvs, t)) =
 // type inference
 //
 
-let gamma0 = [
-    ("+", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
-    ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
 
-]
 
 // TODO for exam
 let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
@@ -192,6 +210,7 @@ let rec typecheck_expr (env : ty env) (e : expr) : ty =
         | TyFloat, TyFloat -> TyFloat
         | TyInt, TyFloat
         | TyFloat, TyInt -> TyFloat
+        | TyString, TyString -> TyString
         | _ -> type_error "binary operator expects two int operands, but got %s %s %s" (pretty_ty t1) op (pretty_ty t2)
         
     | BinOp (e1, ("<" | "<=" | ">" | ">=" | "=" | "<>" as op), e2) ->
