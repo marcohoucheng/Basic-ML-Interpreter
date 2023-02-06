@@ -3,48 +3,24 @@
 * Typing.fs: typing algorithms
 *)
 
-// This is only a type checking
-
 module TinyML.Typing
 
 open Ast
 
 let type_error fmt = throw_formatted TypeError fmt
 
-type subst = (tyvar * ty) list
+type subst = (tyvar * ty) list // tyvar = int
 
 let gamma0 = [
     ("+", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
     ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt))) 
 ]
 
-// TODO: Composition
-let compose_subst (s1 : subst) (s2 : subst) : subst = s1 @ s2
-
-// Unification (Done)
-let rec unify (t1 : ty) (t2 : ty) : subst = // []
-    match (t1, t2) with
-    | TyName s1, TyName s2 when s1 = s2 -> []
-    
-    | TyVar tv, t
-    | t, TyVar tv -> [tv, t]
-    
-    | TyArrow (t1, t2), TyArrow (t3, t4) -> compose_subst (unify t1 t3) (unify t2 t4)
-
-    | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
-        List.fold (fun s (t1, t2) -> compose_subst s (unify t1 t2)) [] (List.zip ts1 ts2)
-
-    | TyTuple ts1, TyTuple ts2 when List.length ts1 <> List.length ts2 ->
-        type_error "cannot unify tuples of different length, %O and %O" t1 t2
-
-    | _ -> type_error "cannot unify types %O and %O" t1 t2
-
 // Substitution
 let rec apply_subst (s : subst) (t : ty) : ty = // t
     match t with
     | TyName _ -> t
-    | TyArrow (t1, t2) -> TyArrow (apply_subst s t1, apply_subst s t2)
-
+    
     | TyVar tv ->
         try
             let _, t1 = List.find (fun (tv1, _) -> tv1 = tv) s
@@ -52,36 +28,24 @@ let rec apply_subst (s : subst) (t : ty) : ty = // t
                 t1
         with KeyNotFoundException -> t
 
+    | TyArrow (t1, t2) -> TyArrow (apply_subst s t1, apply_subst s t2)
+
     | TyTuple ts -> TyTuple (List.map (apply_subst s) ts)
+    | None -> []
 
-// Free variables
-let rec freevars_ty t =
-    match t with
-    | TyName s -> Set.empty
-    | TyVar tv -> Set.singleton tv
-    | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
-    // | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
-    | TyTuple ts -> List.fold (fun r t -> Set.union r (freevars_ty t)) Set.empty ts
+let apply_subst_scheme (s : subst) (sch : scheme) : scheme =
+    match sch with
+    | Forall (tvs, t) ->
+        // For all tyvar in tvs (Set), if in s then remove them
+        // Loop through tvs, if element in s (first element) then remove
+        // Loop through tvs, exclude them in s.
+        // s, s1 are subst (list of tyvar * ty)
+        let s1 = List.filter (fun (x, _) -> not List.contains x s) (Set.toList tvs)
+        Forall (tvs, apply_subst s1 t)
 
-    // ForAll: ftv(ForAll a_bar,gamma) -> ftv(gamma)\{a_bar}
-    | Forall (tvs, t) -> Set.difference (freevars_ty t) tvs
+let apply_subst_scheme_env (s : subst) (env : scheme env) : scheme env =
+    List.map (fun (s1, sche) -> s, apply_subst_scheme s1 sche) env
     
-    | None -> Set.empty
-
-    // ftv(Gamma,(x:tau)) -> Set.union ftv(tau) ftv(Gamma)
-    | env -> None
-
-// no need to match, only one option
-// type scheme = Forall of tyvar Set * ty // list is alpha_bar
-// tvs is a list
-// let freevars_scheme (Forall (tvs, t)) = freevars_ty t - tvs
-let freevars_scheme (Forall (tvs, t)) = Set.difference (freevars_ty t) tvs
-
-// let freevars_scheme_env env =
-//    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
-let freevars_scheme_env env =
-    List.fold (fun r (_, sch) -> Set.union r (freevars_scheme sch)) Set.empty env
-
 (*
 let rec freevars_ty (t : ty) : tyvar Set =
     match t with
@@ -99,43 +63,96 @@ let freevars_scheme (Forall (tvs, t)) =
     Set.difference (freevars_ty t) (Set.ofList tvs)
 *)
 
+// ftv (Sets)
+let rec freevars_ty t =
+    match t with
+    | TyName s 
+    | None -> Set.empty
+    | TyVar tv -> Set.singleton tv
+    | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
+    // | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
+    | TyTuple ts -> List.fold (fun set t -> Set.union set (freevars_ty t)) Set.empty ts
+
+// let freevars_scheme (Forall (tvs, t)) = freevars_ty t - tvs
+let freevars_scheme (Forall (tvs, t)) = Set.difference (freevars_ty t) tvs
+
+// let freevars_scheme_env env =
+//    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
+let freevars_scheme_env env =
+    Set.fold (fun set (_, sch) -> Set.union set (freevars_scheme sch)) Set.empty env
+
+// Composition
+let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
+    // type subst = (tyvar * ty) list
+    // we have 2 list, aim to make a new one
+    // lists look like [1 int, 2 int, ...]
+    // if first element of 2 list are the same, then merge them in the new list
+    // otherwise
+    
+    // loop through list 2, see if 1st element exists in list 1 then...
+    // check the second element is the same
+    // if it doesn't exist in list 1, then we have...
+    // list 2 [0], apply_sub(list2[1], subst1)
+    let map_temp (tvs2, t2) =
+        let res = List.tryFind (fun (tvs, _) -> tvs = tvs2) s1 // map this to s2
+        match res with
+        | None -> tvs2, t2
+        | Some (tvs_r, t_r) when t2 = t_r -> tvs2, apply_subst s1 t2
+    List.map (map_temp s2)
+
+    // end result s3 @ s1
+
+// Unification
+let rec unify (t1 : ty) (t2 : ty) : subst = // []
+    match (t1, t2) with
+    | TyName s1, TyName s2 when s1 = s2 -> []
+    
+    | TyVar tv, t
+    | t, TyVar tv -> [tv, t]
+    
+    | TyArrow (t1, t2), TyArrow (t3, t4) -> compose_subst (unify t1 t3) (unify t2 t4)
+
+    | TyTuple ts1, TyTuple ts2 when List.length ts1 = List.length ts2 ->
+        List.fold (fun s (t1, t2) -> compose_subst s (unify t1 t2)) [] (List.zip ts1 ts2)
+
+    | TyTuple ts1, TyTuple ts2 when List.length ts1 <> List.length ts2 ->
+        type_error "cannot unify tuples of different length, %O and %O" t1 t2
+
+    | _ -> type_error "cannot unify types %O and %O" t1 t2
+
 // type inference
 //
 
-
-
-// TODO for exam
 let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
+    // scheme env = (string * scheme) list
     match e with
     // | Lit (Lint _) -> TyInt, subst Empty _ integer
-    | Lit (LInt _) -> TyInt, [] 
+    | Lit (LInt _) -> TyInt, []
     | Lit (LBool _) -> TyBool, []
-    | Lit (LFloat _) -> TyFloat, [] 
+    | Lit (LFloat _) -> TyFloat, []
     | Lit (LString _) -> TyString, []
-    | Lit (LChar _) -> TyChar, [] 
+    | Lit (LChar _) -> TyChar, []
     | Lit LUnit -> TyUnit, []
 
-    //9 Jan, top down style coding, start from big block to small block
-    | Let (x, tyo, e1, e2) ->
-        let t1, s1 = typeinfer_expr env e1
-        // we haven't defined those functions below yet, define above in a minute
-        // _ty operates on ty, etc.
-        // No overloading in F#
-        // Assume 2 functions exist and they return the same type which - can be used
-        // freevars should return sets (so - can be used and easy to be implementated)
-        // set doesn't allow duplicates like maths
-        let tvs = freevars_ty t1 - freevars_scheme_env env // alpha_bar
-        let sch = Forall (tvs, t1) // sigma
+    // 9 Jan, top down style coding, start from big block to small block
+    | Let (x, some tyo, e1, e2) ->
+        let t1, s0 = typeinfer_expr env e1
+        // Unify tyo and t1
+        let s1 = compose_subst s0 (unify t1 tyo)
+        // alpha_bar (Set)
+        let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env)
+        // sch = sigma (type scheme of tyvar Set * ty)
+        // tvs (alpha_bar) is a set
+        let sch = Forall (tvs, t1)
         let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
         t2, compose_subst s2 s1
-        // Add unification
 
     | _ -> failwithf "not implemented"
-
+    
     // Let uses generalisation
     // Application uses unification
 
-
+(*
 // type checker
 //
     
@@ -246,3 +263,4 @@ let rec typecheck_expr (env : ty env) (e : expr) : ty =
     | UnOp (op, _) -> unexpected_error "typecheck_expr: unsupported unary operator (%s)" op
 
     | _ -> unexpected_error "typecheck_expr: unsupported expression: %s [AST: %A]" (pretty_expr e) e
+*)
