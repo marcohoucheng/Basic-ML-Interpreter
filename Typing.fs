@@ -11,6 +11,7 @@ let type_error fmt = throw_formatted TypeError fmt
 
 type subst = (tyvar * ty) list // tyvar = int
 
+// need to make a version of this in schemes
 let gamma0 = [
     ("+", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
     ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt))) 
@@ -31,7 +32,6 @@ let rec apply_subst (s : subst) (t : ty) : ty = // t
     | TyArrow (t1, t2) -> TyArrow (apply_subst s t1, apply_subst s t2)
 
     | TyTuple ts -> TyTuple (List.map (apply_subst s) ts)
-    | None -> []
 
 let apply_subst_scheme (s : subst) (sch : scheme) : scheme =
     match sch with
@@ -96,11 +96,12 @@ let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
     let map_temp (tvs2, t2) =
         let res = List.tryFind (fun (tvs, _) -> tvs = tvs2) s1 // map this to s2
         match res with
-        | None -> tvs2, t2
-        | Some (tvs_r, t_r) when t2 = t_r -> tvs2, apply_subst s1 t2
-    List.map (map_temp s2)
-
+        | None -> tvs2, t2s
+        | Some (_, t_r) when t2 = t_r -> tvs2, apply_subst s1 t2
+        | Some (tvs_r, t_r) when t2 <> t_r -> type_error "cannot unify as %O is mapped to both %O and %O" tvs_r t_r t2
     // end result s3 @ s1
+    let s3 = List.map (map_temp s2)
+    s3 @ s1
 
 // Unification
 let rec unify (t1 : ty) (t2 : ty) : subst = // []
@@ -120,6 +121,23 @@ let rec unify (t1 : ty) (t2 : ty) : subst = // []
 
     | _ -> type_error "cannot unify types %O and %O" t1 t2
 
+let mutable counter : TyVar = -1;
+
+let fresh =
+    counter <- counter + 1
+    counter
+
+// Instantation
+
+let rec inst (Forall (tvs, t)) : ty =
+    let freeVars = freevars_ty t
+    let toBeRefresh = Set.intersect freeVars tvs
+    let toBeRefresh_l = Set.toList toBeRefresh
+    // build up a substitution mapping each of the type variable that needs to
+    // be refresh, in a new fresh type type variable
+    let s = List.map (fun v -> (v, TyVar(fresh))) toBeRefresh_l
+    apply_subst_ty s t
+
 // type inference
 //
 
@@ -134,23 +152,168 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
     | Lit (LChar _) -> TyChar, []
     | Lit LUnit -> TyUnit, []
 
+    | Var x ->
+        let res = List.tryFind (fun (y, _) -> x = y) env // (name, ty) and we only care about the name
+        match res with
+        | None -> type_error "SOS"
+        | Some (_, sch) -> inst(sch), [] // inst (Forall (tvs, t)) : ty
+
+    // | Lambda (x, None , e)
+    | Lambda (x, tyo, e) ->
+        let tyo1 = match tyo with
+                   | None -> fresh
+                   | Some tyo1 -> tyo1
+        let sch = Forall (Set.empty, tyo1)
+        let new_env = (x, sch) :: env
+        let t1, s1 = typeinfer_expr new_env e
+        let t2 = apply_subst_ty tyo1 s1
+
+        TyArrow(t2, t1), compose_subst s1
+        
+    | App (e1, e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        let env1 = apply_subst_scheme_env s1 env
+        let t2, s2 = typeinfer_expr env1 e2
+        // unify (t1 : ty) (t2 : ty) : subst
+        let alpha = fresh
+        let s3 = unify t1 (TyArrow(t2, alpha))
+        // apply_subst (s : subst) (t : ty) : ty
+        let t = apply_subst s3 alpha
+        t, compose_subst s3 s2
+    
     // 9 Jan, top down style coding, start from big block to small block
     | Let (x, some tyo, e1, e2) ->
         let t1, s0 = typeinfer_expr env e1
         // Unify tyo and t1
         let s1 = compose_subst s0 (unify t1 tyo)
         // alpha_bar (Set)
+        // this env is theta, we need to 
         let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env)
         // sch = sigma (type scheme of tyvar Set * ty)
         // tvs (alpha_bar) is a set
         let sch = Forall (tvs, t1)
         let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
         t2, compose_subst s2 s1
+    
+    | IfThenElse (e1, e2, e3o) ->
+        let t1, s1 = typeinfer_expr env e1
+        let s2 = unify t1 TyBool
+        let s3 = compose_subst s2 s1
+        let env1 = apply_subst_scheme_env s3 env
+        let t2, s4 = typeinfer_expr env1 e2
+        let s5 = compose_subst s4 s3
+        
+        match e30 with
+        | None ->
+            let s6 = unify t2 TyUnit
+            let s7 = compose_subst s6 s5
+            t2, s7
+        | Some e3 ->
+            let env2 = apply_subst_scheme_env s5 env1
+            let t3, s6 = typeinfer_expr env2 e3
+            let s7 = compose_subst s6 s5
+            let s8 = unify (apply_subst s7 t2) (apply_subst s7 t3)
+            let t = apply_subst s8 t2
+            let s9 = compose_subst s8 s7
+            t, s9
+
+    | Tuple es -> // makes no sense
+        // loop through es list
+        // start with s0 = [] and env
+        // env_0 = apply_subst_scheme_env s0 env
+        // t1, s1 = typeinfer_expr env0 e1
+        let f (ts, s) e =
+            let env = apply_subst_scheme_env s env
+            let t, s1 = typeinfer_expr env e
+            (ts :: (apply_subst s t)), s1::s
+
+        let ts, s = List.fold f [] [] es
+        TyTuple ts, s
+
+    | LetRec (f, Some tfo e1, e2) ->
+        let alpha = fresh
+        let sch = Forall (Set.empty alpha)
+        let t1, s0 = typeinfer_expr ((f, sch) :: env) e1
+        let s1 = compose_subst s0 (unify t1 tfo)
+        let env1 = apply_subst_scheme_env s1 env
+        let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env1)
+        let sch1 = Forall (tvs, t1)
+        let t2, s2 = typeinfer_expr ((f, sch1) :: env1) e2
+        t2, compose_subst s2 s1
+    
+    ///////////////////////////////////////////////////////////
+
+    | BinOp (e1, ("+" | "-" | "/" | "%" | "*" as op), e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        let s2 = match t1 with
+                 | TyInt -> unify TyInt t1
+                 | TyFloat -> unify TyFloat t1
+        // let s2 = unify TyInt t1
+        let s3 = compose_subst s2 s1
+        let env1 = apply_subst_scheme_env s3 env
+        let t2, s4 = typeinfer_expr env1 e2
+        // let s5 = unify TyInt t2
+        let s5 = match t1, t2 with
+                 | TyInt, TyInt -> unify TyInt t2
+                 | TyFloat, TyInt
+                 | TyFloat, TyFloat -> unify TyFloat t2
+                 | TyInt, TyFloat ->
+                        let s2 = unify TyFloat t1
+                        let s3 = compose_subst s2 s1
+                        let env1 = apply_subst_scheme_env s3 env
+                        let t2, s4 = typeinfer_expr env1 e2
+                        unify TyFloat t2
+        let s6 = compose_subst s5 s4
+        let ty_out = apply_subst s6, t2
+        (*
+        let ty_out = match t1, t2 with
+                     | TyInt, TyInt -> TyInt
+                     | TyFloat, TyInt
+                     | TyFloat, TyFloat
+                     | TyInt, TyFloat -> TyFloat
+        *)
+        ty_out, s6
+
+    | BinOp (e1, ("<" | "<=" | ">" | ">=" | "=" | "<>" as op), e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        let s2 = unify TyFloat t1
+        let s3 = compose_subst s2 s1
+        let env1 = apply_subst_scheme_env s3 env
+        let t2, s4 = typeinfer_expr env1 e2
+        let s5 = unify TyFloat t2
+        let s6 = compose_subst s5 s4
+        apply_subst s6 t2, s6
+
+    | BinOp (e1, ("and" | "or" as op), e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        let s2 = unify TyBool t1
+        let s3 = compose_subst s2 s1
+        let env1 = apply_subst_scheme_env s3 env
+        let t2, s4 = typeinfer_expr env1 e2
+        let s5 = unify TyBool t2
+        let s6 = compose_subst s5 s4
+        (apply_subst s6 t2), s6
+
+    | BinOp (_, op, _) -> unexpected_error "typeinfer_expr: unsupported binary operator (%s)" op
+
+    | UnOp ("not", e) ->
+        let t1, s1 = typeinfer_expr env e
+        let s2 = unify TyBool t1
+        apply_subst s2 t1, s2
+
+    | UnOp ("-", e) ->
+        let t1, s1 = typeinfer_expr env e
+        let s2 = match t1 with
+                 | TyInt -> unify TyInt t1
+                 | TyFloat -> unify TyFloat t1
+                 | _ -> type_error "unary negation expects a numeric operand, but got %s" (pretty_ty t)
+        apply_subst s2 t1, s2
+
+    | UnOp (op, _) -> unexpected_error "typecheck_expr: unsupported unary operator (%s)" op
+
 
     | _ -> failwithf "not implemented"
-    
-    // Let uses generalisation
-    // Application uses unification
+
 
 (*
 // type checker
