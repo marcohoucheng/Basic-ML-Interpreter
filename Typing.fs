@@ -17,18 +17,28 @@ let gamma0 = [
     ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt))) 
 ]
 
+// type scheme = Forall of tyvar Set * ty
+
+let gamma0_sch = Forall ()
+
+
 // Substitution
 let rec apply_subst (s : subst) (t : ty) : ty = // t
     match t with
     | TyName _ -> t
     
     | TyVar tv ->
+        let res = List.tryFind (fun (tv1, _) -> tv1 = tv) s
+        match res with
+        | Some (_, t1) -> t1
+        | None -> t
+        (*
         try
             let _, t1 = List.find (fun (tv1, _) -> tv1 = tv) s
             in
                 t1
         with KeyNotFoundException -> t
-
+        *)
     | TyArrow (t1, t2) -> TyArrow (apply_subst s t1, apply_subst s t2)
 
     | TyTuple ts -> TyTuple (List.map (apply_subst s) ts)
@@ -40,11 +50,14 @@ let apply_subst_scheme (s : subst) (sch : scheme) : scheme =
         // Loop through tvs, if element in s (first element) then remove
         // Loop through tvs, exclude them in s.
         // s, s1 are subst (list of tyvar * ty)
-        let s1 = List.filter (fun (x, _) -> not List.contains x s) (Set.toList tvs)
+        // tvs is alpha_bar in notes, type tyvar Set
+        // let s1 = List.filter (fun (x, _) -> not (List.contains x s)) (Set.toList tvs)
+        let s1 = List.filter (fun (x, _) -> not (Set.contains x tvs)) s
         Forall (tvs, apply_subst s1 t)
 
+// Returns a scheme env = (string * scheme) list
 let apply_subst_scheme_env (s : subst) (env : scheme env) : scheme env =
-    List.map (fun (s1, sche) -> s, apply_subst_scheme s1 sche) env
+    List.map (fun (s1, sch) -> s1, apply_subst_scheme s sch) env
     
 (*
 let rec freevars_ty (t : ty) : tyvar Set =
@@ -66,8 +79,7 @@ let freevars_scheme (Forall (tvs, t)) =
 // ftv (Sets)
 let rec freevars_ty t =
     match t with
-    | TyName s 
-    | None -> Set.empty
+    | TyName s -> Set.empty
     | TyVar tv -> Set.singleton tv
     | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
     // | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
@@ -76,13 +88,13 @@ let rec freevars_ty t =
 // let freevars_scheme (Forall (tvs, t)) = freevars_ty t - tvs
 let freevars_scheme (Forall (tvs, t)) = Set.difference (freevars_ty t) tvs
 
-// let freevars_scheme_env env =
-//    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
-let freevars_scheme_env env =
-    Set.fold (fun set (_, sch) -> Set.union set (freevars_scheme sch)) Set.empty env
+let freevars_scheme_env (env : scheme env) =
+    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
+// let freevars_scheme_env (env : scheme env) =
+//    Set.fold (fun set (_, sch) -> Set.union set (freevars_scheme sch)) Set.empty env
 
 // Composition
-let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
+let rec compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
     // type subst = (tyvar * ty) list
     // we have 2 list, aim to make a new one
     // lists look like [1 int, 2 int, ...]
@@ -96,12 +108,13 @@ let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
     let map_temp (tvs2, t2) =
         let res = List.tryFind (fun (tvs, _) -> tvs = tvs2) s1 // map this to s2
         match res with
-        | None -> tvs2, t2s
-        | Some (_, t_r) when t2 = t_r -> tvs2, apply_subst s1 t2
-        | Some (tvs_r, t_r) when t2 <> t_r -> type_error "cannot unify as %O is mapped to both %O and %O" tvs_r t_r t2
+        | None -> tvs2, t2
+        | Some (tvs_r, t_r) -> if t2 = t_r then tvs2, apply_subst s1 t2 else type_error "cannot unify as %O is mapped to both %O and %O" tvs_r t_r t2
+        // | Some (_, t_r) when t2 = t_r -> tvs2, apply_subst s1 t2
+        // | Some (tvs_r, t_r) when t2 <> t_r -> type_error "cannot unify as %O is mapped to both %O and %O" tvs_r t_r t2
     // end result s3 @ s1
-    let s3 = List.map (map_temp s2)
-    s3 @ s1
+    let s3 = List.map map_temp s2
+    compose_subst s3 s1
 
 // Unification
 let rec unify (t1 : ty) (t2 : ty) : subst = // []
@@ -121,11 +134,11 @@ let rec unify (t1 : ty) (t2 : ty) : subst = // []
 
     | _ -> type_error "cannot unify types %O and %O" t1 t2
 
-let mutable counter : TyVar = -1;
+let mutable counter = -1;
 
-let fresh =
+let fresh : ty =
     counter <- counter + 1
-    counter
+    TyVar counter
 
 // Instantation
 
@@ -135,8 +148,8 @@ let rec inst (Forall (tvs, t)) : ty =
     let toBeRefresh_l = Set.toList toBeRefresh
     // build up a substitution mapping each of the type variable that needs to
     // be refresh, in a new fresh type type variable
-    let s = List.map (fun v -> (v, TyVar(fresh))) toBeRefresh_l
-    apply_subst_ty s t
+    let s = List.map (fun v -> (v, fresh)) toBeRefresh_l
+    apply_subst s t
 
 // type inference
 //
@@ -161,14 +174,13 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
     // | Lambda (x, None , e)
     | Lambda (x, tyo, e) ->
         let tyo1 = match tyo with
-                   | None -> fresh
                    | Some tyo1 -> tyo1
+                   | None -> fresh
         let sch = Forall (Set.empty, tyo1)
         let new_env = (x, sch) :: env
         let t1, s1 = typeinfer_expr new_env e
-        let t2 = apply_subst_ty tyo1 s1
-
-        TyArrow(t2, t1), compose_subst s1
+        let t2 = apply_subst s1 tyo1
+        TyArrow(t2, t1), s1
         
     | App (e1, e2) ->
         let t1, s1 = typeinfer_expr env e1
@@ -182,12 +194,12 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         t, compose_subst s3 s2
     
     // 9 Jan, top down style coding, start from big block to small block
-    | Let (x, some tyo, e1, e2) ->
+    | Let (x, Some tyo, e1, e2) ->
         let t1, s0 = typeinfer_expr env e1
         // Unify tyo and t1
         let s1 = compose_subst s0 (unify t1 tyo)
         // alpha_bar (Set)
-        // this env is theta, we need to 
+        // this env is theta, we need to
         let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env)
         // sch = sigma (type scheme of tyvar Set * ty)
         // tvs (alpha_bar) is a set
@@ -203,7 +215,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t2, s4 = typeinfer_expr env1 e2
         let s5 = compose_subst s4 s3
         
-        match e30 with
+        match e3o with
         | None ->
             let s6 = unify t2 TyUnit
             let s7 = compose_subst s6 s5
@@ -222,17 +234,19 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         // start with s0 = [] and env
         // env_0 = apply_subst_scheme_env s0 env
         // t1, s1 = typeinfer_expr env0 e1
-        let f (ts, s) e =
+        let f (t, s) e =
             let env = apply_subst_scheme_env s env
-            let t, s1 = typeinfer_expr env e
-            (ts :: (apply_subst s t)), s1::s
+            let t1, s1 = typeinfer_expr env e
+            // cannot use :: because LHS may not be a single element
+            t @ List.singleton(apply_subst s1 t1), s1
+        let x = []
+        let y = []
+        let t, s = List.fold f (x, y) es
+        TyTuple t, s
 
-        let ts, s = List.fold f [] [] es
-        TyTuple ts, s
-
-    | LetRec (f, Some tfo e1, e2) ->
+    | LetRec (f, Some tfo, e1, e2) ->
         let alpha = fresh
-        let sch = Forall (Set.empty alpha)
+        let sch = Forall (Set.empty, alpha)
         let t1, s0 = typeinfer_expr ((f, sch) :: env) e1
         let s1 = compose_subst s0 (unify t1 tfo)
         let env1 = apply_subst_scheme_env s1 env
@@ -242,12 +256,27 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         t2, compose_subst s2 s1
     
     ///////////////////////////////////////////////////////////
-
+    
+    (*
+    // Int
     | BinOp (e1, ("+" | "-" | "/" | "%" | "*" as op), e2) ->
         let t1, s1 = typeinfer_expr env e1
-        let s2 = match t1 with
-                 | TyInt -> unify TyInt t1
-                 | TyFloat -> unify TyFloat t1
+        let s2 = unify TyInt t1
+        let s3 = compose_subst s2 s1
+        let env1 = apply_subst_scheme_env s3 env
+        let t2, s4 = typeinfer_expr env1 e2
+        let s5 = unify TyInt t2
+        let s6 = compose_subst s5 s4
+        TyInt, s6 // t2, s6
+    *)
+
+    // Int & Float
+    | BinOp (e1, ("+" | "-" | "/" | "%" | "*" as op), e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        let s2 = match t1, op with
+                 | TyInt, _ -> unify TyInt t1
+                 | TyFloat, _ -> unify TyFloat t1
+                 | _, op -> type_error "type %O not supported by the operation %O" t1 op
         // let s2 = unify TyInt t1
         let s3 = compose_subst s2 s1
         let env1 = apply_subst_scheme_env s3 env
@@ -263,15 +292,15 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
                         let env1 = apply_subst_scheme_env s3 env
                         let t2, s4 = typeinfer_expr env1 e2
                         unify TyFloat t2
+                 | _ -> type_error "cannot unify %O and %O" t1 t2
         let s6 = compose_subst s5 s4
-        let ty_out = apply_subst s6, t2
-        (*
         let ty_out = match t1, t2 with
                      | TyInt, TyInt -> TyInt
                      | TyFloat, TyInt
                      | TyFloat, TyFloat
                      | TyInt, TyFloat -> TyFloat
-        *)
+                     | _, _ -> type_error "Types %O and %O incompatible with the %O operator" t1 t2 op
+     
         ty_out, s6
 
     | BinOp (e1, ("<" | "<=" | ">" | ">=" | "=" | "<>" as op), e2) ->
@@ -306,10 +335,10 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let s2 = match t1 with
                  | TyInt -> unify TyInt t1
                  | TyFloat -> unify TyFloat t1
-                 | _ -> type_error "unary negation expects a numeric operand, but got %s" (pretty_ty t)
+                 | _ -> type_error "unary negation expects a numeric operand, but got %s" (pretty_ty t1)
         apply_subst s2 t1, s2
 
-    | UnOp (op, _) -> unexpected_error "typecheck_expr: unsupported unary operator (%s)" op
+    | UnOp (op, _) -> unexpected_error "typeinfer_expr: unsupported unary operator (%s)" op
 
 
     | _ -> failwithf "not implemented"
