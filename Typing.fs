@@ -19,7 +19,10 @@ let gamma0 = [
 
 // type scheme = Forall of tyvar Set * ty
 
-let gamma0_sch = Forall ()
+let gamma0_sch = [
+    ("+", Forall (Set.empty, TyArrow (TyInt, TyArrow (TyInt, TyInt))))
+    ("-", Forall (Set.empty, TyArrow (TyInt, TyArrow (TyInt, TyInt))))
+]
 
 
 // Substitution
@@ -238,7 +241,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
             let env = apply_subst_scheme_env s env
             let t1, s1 = typeinfer_expr env e
             // cannot use :: because LHS may not be a single element
-            t @ List.singleton(apply_subst s1 t1), s1
+            t @ List.singleton(apply_subst s1 t1), compose_subst s1 s
         let x = []
         let y = []
         let t, s = List.fold f (x, y) es
