@@ -42,7 +42,7 @@ let main_interpreter filename =
 
 let main_interactive () =
     printfn "entering interactive mode..."
-    let mutable tenv = Typing.gamma0
+    let mutable tenv = [] // Typing.gamma0
     let mutable venv = []
     while true do
         trap <| fun () ->
@@ -56,7 +56,7 @@ let main_interactive () =
                 | IBinding (_, x, _, _ as b) ->
                     let t, v = interpret_expr tenv venv (LetIn (b, Var x)) // TRICK: put the variable itself as body after the in
                     // update global environments
-                    tenv <- (x, t) :: tenv
+                    tenv <- (x, Forall (Set.empty, t)) :: tenv
                     venv <- (x, v) :: venv
                     x, (t, v)
 
