@@ -5,13 +5,15 @@
 
 // line comment
 
-//let f x y = (x, y) in
-//let g x = f x x
-//in ()
+// let f x y = (x, y) in
+// let g x = f x x
+// in ()
 
 
-//let f = fun x -> (x + 1, if x then 1 else 2)
+// let f = fun x -> (x + 1, if x then 1 else 2)
 
-let f = fun (x : int) -> x + 3 in (f 2)
-
-
+let x = 5 in
+let y = 8. in
+let f = x * 2 + y in
+let z = f > 0
+in (z)

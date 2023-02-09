@@ -68,7 +68,7 @@ let main_interactive () =
     
 [<EntryPoint>]
 let main argv =
-    printf "Argv is %O\n" argv
+    printf "Welcome to TinyML\n"
     let r =
         try 
             if argv.Length < 1 then main_interactive ()
