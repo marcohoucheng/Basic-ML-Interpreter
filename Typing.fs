@@ -92,7 +92,8 @@ let freevars_scheme_env (env : scheme env) =
 //    Set.fold (fun set (_, sch) -> Set.union set (freevars_scheme sch)) Set.empty env
 
 // Composition
-let rec compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
+let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
+    printf "We are in compose_subst now!\n"
     // type subst = (tyvar * ty) list
     // we have 2 list, aim to make a new one
     // lists look like [1 int, 2 int, ...]
@@ -114,7 +115,8 @@ let rec compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
         // | Some (tvs_r, t_r) when t2 <> t_r -> type_error "cannot unify as %O is mapped to both %O and %O" tvs_r t_r t2
     // end result s3 @ s1
     let s3 = List.map map_temp s2
-    compose_subst s3 s1
+    printf "map_temp ran successfully\n"
+    s3 @ s1
 
 // Unification
 let rec unify (t1 : ty) (t2 : ty) : subst = // []
@@ -163,7 +165,7 @@ let rec inst (Forall (tvs, t)) =
 //
 
 let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
-    printf "typeinfer_expr called for %O\n" e
+    printf "typeinfer_expr called with expression %O\n" e
     // scheme env = (string * scheme) list
     match e with
     // | Lit (Lint _) -> TyInt, subst Empty _ integer
@@ -177,11 +179,12 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
     | Var x ->
         printf "typeinfer_expr called Var x \n"
         let res = List.tryFind (fun (y, _) -> x = y) env // (name, ty) and we only care about the name
-        let t, s = match res with
-                   | None -> type_error "No scheme available for the variable %O\n" x
-                   | Some (_, sch) -> inst(sch), [] // inst (Forall (tvs, t)) : ty
-        printf "t and s found\n"
-        t, s
+        printf "res found as %O \n" res
+        match res with
+        | None -> type_error "No scheme available for the variable %O\n" x
+        | Some (_, sch) ->
+            printf "sch matched as %O \n" sch
+            inst(sch), [] // inst (Forall (tvs, t)) : ty
 
     // | Lambda (x, None , e)
     | Lambda (x, tyo, e) ->
@@ -216,8 +219,12 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         // sch = sigma (type scheme of tyvar Set * ty)
         // tvs (alpha_bar) is a set
         let sch = Forall (tvs, t1)
+        printf "Let None before calling typeinfer_expr \n"
         let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
-        t2, compose_subst s2 s1
+        printf "Let None after calling typeinfer_expr with t2 = %O and s2 = %O\n" t2 s2
+        let s3 = compose_subst s2 s1
+        printf "Let None after composing s2 and s1 and it is %O\n" s3
+        t2, s3
     
     | Let (x, Some tyo, e1, e2) ->
         printf "typeinfer_expr called Let Some\n"
@@ -369,12 +376,10 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
 
     | UnOp (op, _) -> unexpected_error "typeinfer_expr: unsupported unary operator (%s)" op
 
-
     | _ -> failwithf "not implemented"
 
 
-(*
-// type checker
+// type checker ////////////////////////////////////////////////////////////////////////////////////
 //
     
 let rec typecheck_expr (env : ty env) (e : expr) : ty =
@@ -471,4 +476,3 @@ let rec typecheck_expr (env : ty env) (e : expr) : ty =
         | _ -> type_error "unary negation expects a numeric operand, but got %s" (pretty_ty t)
     | UnOp (op, _) -> unexpected_error "typecheck_expr: unsupported unary operator (%s)" op
     | _ -> unexpected_error "typecheck_expr: unsupported expression: %s [AST: %A]" (pretty_expr e) e
-*)
