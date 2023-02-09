@@ -1,4 +1,4 @@
-(*
+﻿(*
 * TinyML
 * Typing.fs: typing algorithms
 *)
@@ -11,21 +11,22 @@ let type_error fmt = throw_formatted TypeError fmt
 
 type subst = (tyvar * ty) list // tyvar = int
 
-// need to make a version of this in schemes
+(*
 let gamma0 = [
     ("+", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
     ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt))) 
 ]
 
 // type scheme = Forall of tyvar Set * ty
-
 let gamma0_sch = [
     ("+", Forall (Set.empty, TyArrow (TyInt, TyArrow (TyInt, TyInt))))
     ("-", Forall (Set.empty, TyArrow (TyInt, TyArrow (TyInt, TyInt))))
 ]
+*)
 
 
 // Substitution
+//
 let rec apply_subst (s : subst) (t : ty) : ty = // t
     match t with
     | TyName _ -> t
@@ -118,10 +119,21 @@ let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
     printf "map_temp ran successfully\n"
     s3 @ s1
 
+let check_type (t1 : ty) (t2 : ty) : int =
+    match (t1, t2) with
+    | TyInt, TyInt -> 0
+    | TyInt, TyFloat
+    | TyFloat, TyInt
+    | TyFloat, TyFloat -> 1
+    | TyString, TyString -> 2
+    | _, _ -> 3
+
 // Unification
 let rec unify (t1 : ty) (t2 : ty) : subst = // []
+    printf "We are unifying t1 = %O and t2 = %O now... \n" t1 t2
     match (t1, t2) with
     | TyName s1, TyName s2 when s1 = s2 -> []
+    | TyName s1, TyName s2 when check_type t1 t2 > 0 -> []
     | TyVar tv, t
     | t, TyVar tv -> [tv, t]
     | TyArrow (t1, t2), TyArrow (t3, t4) -> compose_subst (unify t1 t3) (unify t2 t4)
@@ -209,22 +221,14 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         // apply_subst (s : subst) (t : ty) : ty
         let t = apply_subst s3 alpha
         t, compose_subst s3 s2
-
+    
     | Let (x, None, e1, e2) ->
         printf "typeinfer_expr called Let None\n"
         let t1, s1 = typeinfer_expr env e1
-        // alpha_bar (Set)
-        // this env is theta, we need to
         let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env)
-        // sch = sigma (type scheme of tyvar Set * ty)
-        // tvs (alpha_bar) is a set
         let sch = Forall (tvs, t1)
-        printf "Let None before calling typeinfer_expr \n"
         let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
-        printf "Let None after calling typeinfer_expr with t2 = %O and s2 = %O\n" t2 s2
-        let s3 = compose_subst s2 s1
-        printf "Let None after composing s2 and s1 and it is %O\n" s3
-        t2, s3
+        t2, compose_subst s2 s1
     
     | Let (x, Some tyo, e1, e2) ->
         printf "typeinfer_expr called Let Some\n"
@@ -279,8 +283,17 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t, s = List.fold f (x, y) es
         TyTuple t, s
 
+    | LetRec (f, None, e1, e2) ->
+        printf "typeinfer_expr called Let Rec None\n"
+        let t1, s1 = typeinfer_expr env e1
+        let env1 = apply_subst_scheme_env s1 env
+        let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env1)
+        let sch1 = Forall (tvs, t1)
+        let t2, s2 = typeinfer_expr ((f, sch1) :: env1) e2
+        t2, compose_subst s2 s1
+
     | LetRec (f, Some tfo, e1, e2) ->
-        printf "typeinfer_expr called Let Rec\n"
+        printf "typeinfer_expr called Let Rec Some\n"
         let alpha = fresh()
         let sch = Forall (Set.empty, alpha)
         let t1, s0 = typeinfer_expr ((f, sch) :: env) e1
@@ -306,8 +319,46 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         TyInt, s6 // t2, s6
     *)
 
-    // Int & Float
+    // check_IntFloat 0 = no intfloat, 1 only int, 2 floats
     | BinOp (e1, ("+" | "-" | "/" | "%" | "*" as op), e2) ->
+        let t1, s1 = typeinfer_expr env e1
+        let t2, s2  = typeinfer_expr env e2
+        let res = check_type t1 t2
+        match res with
+        | 0 -> // int
+            let t1, s1 = typeinfer_expr env e1
+            let s2 = unify TyInt t1
+            let s3 = compose_subst s2 s1
+            let env1 = apply_subst_scheme_env s3 env
+            let t2, s4 = typeinfer_expr env1 e2
+            let s5 = unify TyInt t2
+            let s6 = compose_subst s5 s4
+            apply_subst s6 t2, s6
+        | 1 -> // float
+            let t1, s1 = typeinfer_expr env e1
+            let s2 = unify TyFloat t1
+            let s3 = compose_subst s2 s1
+            let env1 = apply_subst_scheme_env s3 env
+            let t2, s4 = typeinfer_expr env1 e2
+            let s5 = unify TyFloat t2
+            let s6 = compose_subst s5 s4
+            apply_subst s6 t2, s6
+        | 2 -> match op with // string
+               | "+" -> 
+                    let t1, s1 = typeinfer_expr env e1
+                    let s2 = unify TyString t1
+                    let s3 = compose_subst s2 s1
+                    let env1 = apply_subst_scheme_env s3 env
+                    let t2, s4 = typeinfer_expr env1 e2
+                    let s5 = unify TyString t2
+                    let s6 = compose_subst s5 s4
+                    apply_subst s6 t2, s6
+               | _ -> type_error "operator %O cannot be applied to type %O" op t1
+        | _ -> type_error "operator %O cannot be applied to types %O and %O" op t1 t2
+    
+    (*
+    // Int & Float
+    | BinOp (e1, ("+" | "-" | "/" | "%" | "*" as op), e2) ->              
         let t1, s1 = typeinfer_expr env e1
         let s2 = match t1, op with
                  | TyInt, _ -> unify TyInt t1
@@ -318,6 +369,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let env1 = apply_subst_scheme_env s3 env
         let t2, s4 = typeinfer_expr env1 e2
         // let s5 = unify TyInt t2
+        printf "Want to unify t1 = %O and t2 = %O\n" t1 t2
         let s5 = match t1, t2 with
                  | TyInt, TyInt -> unify TyInt t2
                  | TyFloat, TyInt
@@ -336,8 +388,8 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
                      | TyFloat, TyFloat
                      | TyInt, TyFloat -> TyFloat
                      | _, _ -> type_error "Types %O and %O incompatible with the %O operator" t1 t2 op
-     
         ty_out, s6
+    *)
 
     | BinOp (e1, ("<" | "<=" | ">" | ">=" | "=" | "<>" as op), e2) ->
         let t1, s1 = typeinfer_expr env e1
@@ -347,7 +399,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t2, s4 = typeinfer_expr env1 e2
         let s5 = unify TyFloat t2
         let s6 = compose_subst s5 s4
-        apply_subst s6 t2, s6
+        TyBool, s6
 
     | BinOp (e1, ("and" | "or" as op), e2) ->
         let t1, s1 = typeinfer_expr env e1
