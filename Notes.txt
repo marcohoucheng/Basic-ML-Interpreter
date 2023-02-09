@@ -1,0 +1,9 @@
+Things to Understand for exam
+Var
+Lambda
+Tuple
+let x = y = 0
+
+1. Binary operations on variables (i.e. set functions)let f x 
+3. Exponential function
+4. Abs
