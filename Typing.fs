@@ -163,7 +163,7 @@ let rec inst (Forall (tvs, t)) =
 //
 
 let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
-    printf "typeinfer_expr called \n"
+    printf "typeinfer_expr called for %O\n" e
     // scheme env = (string * scheme) list
     match e with
     // | Lit (Lint _) -> TyInt, subst Empty _ integer
@@ -180,6 +180,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t, s = match res with
                    | None -> type_error "No scheme available for the variable %O\n" x
                    | Some (_, sch) -> inst(sch), [] // inst (Forall (tvs, t)) : ty
+        printf "t and s found\n"
         t, s
 
     // | Lambda (x, None , e)

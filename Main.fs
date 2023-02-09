@@ -16,7 +16,7 @@ let interpret_expr tenv venv e =
     printfn "AST:\t%A\npretty:\t%s" e (pretty_expr e)
     #endif
     printf "In Main.interpret_expr\n"
-    let t, _ = Typing.typeinfer_expr tenv e
+    let t, s = Typing.typeinfer_expr tenv e
     printf "In Main.interpret_expr, typeinfer_expr complete\n"
     #if DEBUG
     printfn "type:\t%s" (pretty_ty t)
