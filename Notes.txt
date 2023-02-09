@@ -4,6 +4,7 @@ Lambda
 Tuple
 let x = y = 0
 
-1. Binary operations on variables (i.e. set functions)let f x 
+1. Let Rec
+2. change '1 to 'a...
 3. Exponential function
 4. Abs
