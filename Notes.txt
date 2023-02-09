@@ -1,0 +1,46 @@
+{-
+Things to Investigate
+Var
+Lambda
+Tuple
+1. UnOp as 1 function
+2. Why 2 operators
+3. Exponential
+4. Abs
+-}
+Tuple
+let x = y = 0;;????
+
+typeinfer_expr (env : scheme env) (e : expr) : ty * subst
+
+type scheme = Forall of tyvar Set * ty
+type tyvar = int
+
+type expr = 
+    | Lit of lit
+    | Lambda of string * ty option * expr
+    | App of expr * expr
+    | Var of string
+    | LetIn of binding * expr
+    | IfThenElse of expr * expr * expr option
+    | Tuple of expr list
+    | BinOp of expr * string * expr
+    | UnOp of string * expr
+
+type ty = -- tuo in theory
+    | TyName of string -- int float (constant names)...
+    | TyArrow of ty * ty -- ignore synthetic -> (taken care of)
+    | TyVar of tyvar -- 'a (int defined above)
+    | TyTuple of ty list -- ignore synthetic * (taken care of)
+
+type subst = (tyvar * ty) list
+
+type 'a env = (string * 'a) list
+type scheme env = (string * scheme) list
+
+//////////////////////////////////////////
+
+let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env)
+t1 ty
+env scheme env
+
