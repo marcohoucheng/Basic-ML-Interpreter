@@ -15,11 +15,14 @@ let interpret_expr tenv venv e =
     #if DEBUG
     printfn "AST:\t%A\npretty:\t%s" e (pretty_expr e)
     #endif
+    printf "In Main.interpret_expr\n"
     let t, _ = Typing.typeinfer_expr tenv e
+    printf "In Main.interpret_expr, typeinfer_expr complete\n"
     #if DEBUG
     printfn "type:\t%s" (pretty_ty t)
     #endif
     let v = Eval.eval_expr venv e
+    printf "In Main.interpret_expr, eval_expr complete\n"
     #if DEBUG
     printfn "value:\t%s\n" (pretty_value v)
     #endif
@@ -42,7 +45,7 @@ let main_interpreter filename =
 
 let main_interactive () =
     printfn "entering interactive mode..."
-    let mutable tenv = [] // Typing.gamma0
+    let mutable tenv = Typing.gamma0_sch
     let mutable venv = []
     while true do
         trap <| fun () ->
@@ -55,6 +58,7 @@ let main_interactive () =
 
                 | IBinding (_, x, _, _ as b) ->
                     let t, v = interpret_expr tenv venv (LetIn (b, Var x)) // TRICK: put the variable itself as body after the in
+                    printf "Received t and v\n"
                     // update global environments
                     tenv <- (x, Forall (Set.empty, t)) :: tenv
                     venv <- (x, v) :: venv
