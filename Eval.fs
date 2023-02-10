@@ -71,6 +71,22 @@ let rec eval_expr (env : value env) (e : expr) : value =
     | UnOp ("not", e) -> unop_b (not) env e
     | UnOp ("+", e) -> unop_p (+) env e
     | UnOp ("-", e) -> unop_n (-) env e
+//
+    | BinOp (e1, "+.", e2) -> binop_plus (+) (+) (+) env e1 e2
+    | BinOp (e1, "-.", e2) -> binop (-) (-) env e1 e2
+    | BinOp (e1, "*.", e2) -> binop (*) (*) env e1 e2
+    | BinOp (e1, "/.", e2) -> binop (/) (/) env e1 e2
+    | BinOp (e1, "%.", e2) -> binop (%) (%) env e1 e2
+    
+    | BinOp (e1, "<.", e2)  -> binop_bool (<)  (<)  env e1 e2
+    | BinOp (e1, "<=.", e2) -> binop_bool (<=) (<=) env e1 e2
+    | BinOp (e1, ">.", e2)  -> binop_bool (>)  (>)  env e1 e2
+    | BinOp (e1, ">=.", e2) -> binop_bool (>=) (>=) env e1 e2
+    | BinOp (e1, "=.", e2)  -> binop_bool (=)  (=)  env e1 e2
+    | BinOp (e1, "<>.", e2) -> binop_bool (<>) (<>) env e1 e2
+
+    | UnOp ("+.", e) -> unop_p (+) env e
+    | UnOp ("-.", e) -> unop_n (-) env e
 
     | _ -> unexpected_error "eval_expr: unsupported expression: %s [AST: %A]" (pretty_expr e) e
 

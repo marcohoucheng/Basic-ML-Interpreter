@@ -3,8 +3,6 @@
 * Ast.fs: abstract syntax tree
 *)
 
-// All datatypes of the tree
-
 module TinyML.Ast
 
 open Printf
@@ -26,11 +24,11 @@ let unexpected_error fmt = throw_formatted UnexpectedError fmt
 
 type tyvar = int
 
-type ty = // tuo in theory
-    | TyName of string // int float (constant names)...
-    | TyArrow of ty * ty // ignore synthetic -> (taken care of)
-    | TyVar of tyvar // 'a (int defined above)
-    | TyTuple of ty list // ignore synthetic * (taken care of)
+type ty =
+    | TyName of string
+    | TyArrow of ty * ty
+    | TyVar of tyvar
+    | TyTuple of ty list
 
 // pseudo data constructors for literal types
 let TyFloat = TyName "float"
@@ -52,10 +50,9 @@ let (|TyString|_|) = (|TyLit|_|) "string"
 let (|TyBool|_|) = (|TyLit|_|) "bool"
 let (|TyUnit|_|) = (|TyLit|_|) "unit"
 
-// type scheme = Forall of tyvar list * ty
+
 type scheme = Forall of tyvar Set * ty
 
-// literals 
 type lit = LInt of int
          | LFloat of float
          | LString of string
@@ -66,18 +63,9 @@ type lit = LInt of int
 type binding = bool * string * ty option * expr    // (is_recursive, id, optional_type_annotation, expression)
 
 
-
-//fun pippo -> pippo + 1
-
-
-// expression e :: =
-// Lambda can be annotated or non-annotated
-// fun x -> x + 1
-// fun (x : bool) -> if x then...
 and expr = 
     | Lit of lit
     | Lambda of string * ty option * expr
-    // | Lambda of string * expr
     | App of expr * expr
     | Var of string
     | LetIn of binding * expr
@@ -116,7 +104,7 @@ let rec flatten p sep es =
     match es with
     | [] -> ""
     | [e] -> p e
-    | e :: es -> sprintf "%s %s %s" (p e) sep (flatten p sep es)
+    | e :: es -> sprintf "%s%s %s" (p e) sep (flatten p sep es)
 
 // print pairs within the given env using p as printer for the elements bound within
 let pretty_env p env = sprintf "[%s]" (flatten (fun (x, o) -> sprintf "%s=%s" x (p o)) ";" env)
@@ -124,11 +112,23 @@ let pretty_env p env = sprintf "[%s]" (flatten (fun (x, o) -> sprintf "%s=%s" x 
 // print any tuple given a printer p for its elements
 let pretty_tupled p l = flatten p ", " l
 
+let mutable pretty_counter = 0
+let mutable pretty_list = []
+let pretty_fresh(n) =
+    pretty_counter <- pretty_counter + 1
+    pretty_list <- (n, pretty_counter) :: pretty_list
+    int pretty_counter
+
 let rec pretty_ty t =
     match t with
     | TyName s -> s
     | TyArrow (t1, t2) -> sprintf "%s -> %s" (pretty_ty t1) (pretty_ty t2)
-    | TyVar n -> sprintf "'%d" n
+    | TyVar n ->
+        let res = List.tryFind (fun (x, _) -> x = n) pretty_list
+        match res with
+        | Some (_, c) -> sprintf "'%d" c
+        | None -> let p = pretty_fresh(n)
+                  sprintf "'%d" p        
     | TyTuple ts -> sprintf "(%s)" (pretty_tupled pretty_ty ts)
 
 let pretty_lit lit =
@@ -148,7 +148,6 @@ let rec pretty_expr e =
     | Lambda (x, None, e) -> sprintf "fun %s -> %s" x (pretty_expr e)
     | Lambda (x, Some t, e) -> sprintf "fun (%s : %s) -> %s" x (pretty_ty t) (pretty_expr e)
     
-    // TODO pattern-match sub-application cases
     | App (e1, e2) -> sprintf "%s %s" (pretty_expr e1) (pretty_expr e2)
 
     | Var x -> x

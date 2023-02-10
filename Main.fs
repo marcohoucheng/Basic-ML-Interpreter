@@ -16,9 +16,7 @@ let interpret_expr tenv venv e =
     printfn "AST:\t%A\npretty:\t%s" e (pretty_expr e)
     #endif
     // let t = Typing.typecheck_expr tenv e\
-    printf "interpret_expr before Typing\n"
     let t, _ = Typing.typeinfer_expr tenv e
-    printf "interpret_expr after Typing\n"
     #if DEBUG
     printfn "type:\t%s" (pretty_ty t)
     #endif
@@ -45,7 +43,7 @@ let main_interpreter filename =
 
 let main_interactive () =
     printfn "entering interactive mode..."
-    let mutable tenv = [] // Typing.gamma0_sch
+    let mutable tenv = Typing.gamma0_sch
     let mutable venv = []
     while true do
         trap <| fun () ->
