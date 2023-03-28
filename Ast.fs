@@ -112,23 +112,28 @@ let pretty_env p env = sprintf "[%s]" (flatten (fun (x, o) -> sprintf "%s=%s" x 
 // print any tuple given a printer p for its elements
 let pretty_tupled p l = flatten p ", " l
 
+(*
 let mutable pretty_counter = 0
 let mutable pretty_list = []
 let pretty_fresh(n) =
     pretty_counter <- pretty_counter + 1
     pretty_list <- (n, pretty_counter) :: pretty_list
     int pretty_counter
+*)
 
 let rec pretty_ty t =
     match t with
     | TyName s -> s
     | TyArrow (t1, t2) -> sprintf "%s -> %s" (pretty_ty t1) (pretty_ty t2)
+    | TyVar n -> sprintf "'%d" n
+    (*
     | TyVar n ->
         let res = List.tryFind (fun (x, _) -> x = n) pretty_list
         match res with
         | Some (_, c) -> sprintf "'%d" c
         | None -> let p = pretty_fresh(n)
-                  sprintf "'%d" p        
+                  sprintf "'%d" p
+    *)
     | TyTuple ts -> sprintf "(%s)" (pretty_tupled pretty_ty ts)
 
 let pretty_lit lit =

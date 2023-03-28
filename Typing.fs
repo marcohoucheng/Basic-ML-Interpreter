@@ -16,7 +16,7 @@ type subst = (tyvar * ty) list // tyvar = int
 
 let gamma0 = [
     ("+", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
-    ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt))) 
+    ("-", TyArrow (TyInt, TyArrow (TyInt, TyInt)))
 ]
 
 // type scheme = Forall of tyvar Set * ty
@@ -38,6 +38,7 @@ let gamma0_sch = [
     ("+", Forall(Set.empty, TyArrow (TyInt, TyInt)))
     ("-", Forall(Set.empty, TyArrow (TyInt, TyInt)))
 
+    (*
     ("+.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
     ("-.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
     ("*.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
@@ -51,6 +52,7 @@ let gamma0_sch = [
     ("<>.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyBool))))
     ("+.", Forall(Set.empty, TyArrow (TyFloat, TyFloat)))
     ("-.", Forall(Set.empty, TyArrow (TyFloat, TyFloat)))
+    *)
 ]
 
 // Used in Unification and Type Inference
@@ -119,16 +121,20 @@ let freevars_scheme_env (env : scheme env) =
 // Composition
 //
 
+let compose_subst (s2 : subst) (s1 : subst) : subst =
+    let s1 = List.map (fun (id, t) -> (id, apply_subst s2 t)) s1
+    s1 @ s2
+
+(*
 let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
-    let map_temp (tvs2, t2) =
-        let res = List.tryFind (fun (tvs, _) -> tvs = tvs2) s1 // map this to s2
+    let map_temp (tvs2 : tyvar, t2 : ty) = // input s2
+        let res = List.tryFind (fun (tvs, t) -> tvs = t2) s1 // check s2 against s1
         match res with
-        | None -> tvs2, t2
-        | Some (tvs_r, t_r) -> if t2 = t_r
-                                then tvs2, apply_subst s1 t2
-                                else type_error "cannot unify as %O is mapped to both %O and %O" tvs_r t_r t2
-    let s3 = List.map map_temp s2
+        | Some (tvs_r, t_r) -> tvs2, t_r // subst * ty
+        | None -> tvs2, t2 // if key not exists in s1, keep s2 key:value pairs
+    let s3 = List.map map_temp s2 // check and modify s2 and keep s1
     s3 @ s1
+*)
 
 // Unification
 //
