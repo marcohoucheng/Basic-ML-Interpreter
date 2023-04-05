@@ -107,7 +107,7 @@ let apply_subst_scheme_env (s : subst) (env : scheme env) : scheme env =
 
 let rec freevars_ty t =
     match t with
-    | TyName s -> Set.empty
+    | TyName _ -> Set.empty
     | TyVar tv -> Set.singleton tv
     | TyArrow (t1, t2) -> Set.union (freevars_ty t1) (freevars_ty t2)
     // | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
@@ -122,8 +122,8 @@ let freevars_scheme_env (env : scheme env) =
 //
 
 let compose_subst (s2 : subst) (s1 : subst) : subst =
-    let s1 = List.map (fun (id, t) -> (id, apply_subst s2 t)) s1
-    s1 @ s2
+    let s3 = List.map (fun (tvs, t) -> (tvs, apply_subst s2 t)) s1
+    s3 @ s2
 
 (*
 let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
@@ -165,14 +165,30 @@ let fresh() : ty =
     counter <- counter + 1
     TyVar counter
 
+(*
+let rec inst (s:scheme) : ty =
+    match s with
+    | Forall (uqv, t) ->
+        let freeVars = freevars_ty t
+        let toBeRefresh = Set.intersect freeVars (Set uqv)
+        // build up a substitution mapping each of the type variable that needs to
+        // be refresh, in a new fresh type type variable
+        let sub = List.map (fun v -> (v, fresh())) (List.sort (Set.toList toBeRefresh))
+        apply_subst sub t //apply_subst (s : subst) (t : ty)
+*)
+
+//(*
 let rec inst (Forall (tvs, t)) =
     match t with
     | TyName _ -> t
-    | TyVar tv -> if (Set.contains(tv) tvs) then fresh() else TyVar tv
+    | TyVar tv -> if (Set.contains(tv) tvs)
+                  then fresh()
+                  else TyVar tv
     | TyArrow (t1, t2) -> TyArrow (inst (Forall (tvs, t1)), inst (Forall (tvs, t2)))
     | TyTuple ts -> let tuple = List.map (fun t -> inst (Forall (tvs, t))) ts
                     TyTuple tuple
-
+//*)
+// unexpected error: eval_expr: unsupported expression: ("hello",  3,  4) [AST: Tuple [Lit (LString "hello"); Lit (LInt 3); Lit (LFloat 4.0)]]
 // type inference
 //
 
