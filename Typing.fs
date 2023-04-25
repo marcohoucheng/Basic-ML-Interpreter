@@ -105,7 +105,7 @@ let apply_subst_scheme_env (s : subst) (env : scheme env) : scheme env =
 //  Free type variables
 //
 
-let rec freevars_ty t =
+let rec freevars_ty t = // return a set
     match t with
     | TyName _ -> Set.empty
     | TyVar tv -> Set.singleton tv
@@ -165,19 +165,13 @@ let fresh() : ty =
     counter <- counter + 1
     TyVar counter
 
-(*
-let rec inst (s:scheme) : ty =
-    match s with
-    | Forall (uqv, t) ->
-        let freeVars = freevars_ty t
-        let toBeRefresh = Set.intersect freeVars (Set uqv)
-        // build up a substitution mapping each of the type variable that needs to
-        // be refresh, in a new fresh type type variable
-        let sub = List.map (fun v -> (v, fresh())) (List.sort (Set.toList toBeRefresh))
-        apply_subst sub t //apply_subst (s : subst) (t : ty)
-*)
+let rec inst (Forall (tvs, t)) = // tvs = tyvar Set, t = ty
+    let toRefresh = Set.intersect (freevars_ty t) (Set tvs)
+    // let s = List.map (fun v -> (v, fresh())) (List.sort (Set.toList toRefresh))
+    let s = List.map (fun v -> (v, fresh())) (Set.toList toRefresh)
+    apply_subst s t //apply_subst (s : subst) (t : ty)
 
-//(*
+(*
 let rec inst (Forall (tvs, t)) =
     match t with
     | TyName _ -> t
@@ -185,9 +179,10 @@ let rec inst (Forall (tvs, t)) =
                   then fresh()
                   else TyVar tv
     | TyArrow (t1, t2) -> TyArrow (inst (Forall (tvs, t1)), inst (Forall (tvs, t2)))
-    | TyTuple ts -> let tuple = List.map (fun t -> inst (Forall (tvs, t))) ts
+    | TyTuple ts -> let tuple = List.map (fun t2 -> inst (Forall (tvs, t2))) ts
                     TyTuple tuple
-//*)
+*)
+
 // unexpected error: eval_expr: unsupported expression: ("hello",  3,  4) [AST: Tuple [Lit (LString "hello"); Lit (LInt 3); Lit (LFloat 4.0)]]
 // type inference
 //
@@ -261,7 +256,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
             let t = apply_subst s8 t2
             let s9 = compose_subst s8 s7
             t, s9
-
+    
     | Tuple es ->
         let f (t, s) e =
             let env = apply_subst_scheme_env s env
@@ -270,6 +265,17 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
             t @ List.singleton(apply_subst s1 t1), compose_subst s1 s
         let t, s = List.fold f ([], []) es
         TyTuple t, s
+
+    (*
+    | Tuple es ->
+        let f (t, s) e =
+            let env = apply_subst_scheme_env s env
+            let t1, s1 = typeinfer_expr env e
+            // cannot use :: because LHS may not be a single element
+            t @ List.singleton(apply_subst s1 t1), compose_subst s1 s
+        let t, s = List.fold f ([], []) es
+        TyTuple t, s
+    *)
 
     | LetRec (f, tyo, e1, e2) ->
         let alpha = fresh()

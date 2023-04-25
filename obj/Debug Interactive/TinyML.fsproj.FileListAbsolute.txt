@@ -1,0 +1,60 @@
+Y:\Projects\TinyML\bin\Debug Interactive\TinyML.exe.config
+Y:\Projects\TinyML\bin\Debug Interactive\TinyML.XML
+Y:\Projects\TinyML\bin\Debug Interactive\TinyML.exe
+Y:\Projects\TinyML\bin\Debug Interactive\TinyML.pdb
+Y:\Projects\TinyML\bin\Debug Interactive\FSharp.Core.dll
+Y:\Projects\TinyML\bin\Debug Interactive\FsLexYacc.Runtime.dll
+Y:\Projects\TinyML\bin\Debug Interactive\System.ValueTuple.dll
+Y:\Projects\TinyML\bin\Debug Interactive\FSharp.Core.xml
+Y:\Projects\TinyML\bin\Debug Interactive\FsLexYacc.Runtime.xml
+Y:\Projects\TinyML\bin\Debug Interactive\System.ValueTuple.xml
+Y:\Projects\TinyML\bin\Debug Interactive\zh-Hans\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\zh-Hant\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\pl\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\ja\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\it\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\cs\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\ru\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\pt-BR\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\de\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\ko\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\fr\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\es\FSharp.Core.resources.dll
+Y:\Projects\TinyML\bin\Debug Interactive\tr\FSharp.Core.resources.dll
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.fsproj.AssemblyReference.cache
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.fsproj.SuggestedBindingRedirects.cache
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.exe.config
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.fsproj.CoreCompileInputs.cache
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.fsproj.CopyComplete
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.exe
+Y:\Projects\TinyML\obj\Debug Interactive\TinyML.pdb
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\TinyML.exe.config
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\TinyML.XML
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\TinyML.exe
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\TinyML.pdb
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\FSharp.Core.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\FsLexYacc.Runtime.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\System.ValueTuple.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\FSharp.Core.xml
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\FsLexYacc.Runtime.xml
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\System.ValueTuple.xml
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\zh-Hans\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\zh-Hant\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\pl\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\ja\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\it\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\cs\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\ru\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\pt-BR\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\de\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\ko\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\fr\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\es\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\bin\Debug Interactive\tr\FSharp.Core.resources.dll
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.fsproj.AssemblyReference.cache
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.fsproj.SuggestedBindingRedirects.cache
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.exe.config
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.fsproj.CoreCompileInputs.cache
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.fsproj.CopyComplete
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.exe
+X:\Documents\UNIPD\Functional Languages\TinyML\obj\Debug Interactive\TinyML.pdb

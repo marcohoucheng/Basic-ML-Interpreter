@@ -17,6 +17,8 @@ let rec eval_expr (env : value env) (e : expr) : value =
 
     | Lambda (x, _, e) -> Closure (env, x, e)
 
+    | Tuple es -> VTuple (List.map (eval_expr env) es)
+
     | App (e1, e2) ->
         let v1 = eval_expr env e1
         let v2 = eval_expr env e2
