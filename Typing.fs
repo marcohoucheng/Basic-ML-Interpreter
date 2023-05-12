@@ -3,6 +3,11 @@
 * Typing.fs: typing algorithms
 *)
 
+// tyvar = int
+// type subst = (tyvar * ty) list
+// type scheme = Forall of tyvar Set * ty
+
+
 module TinyML.Typing
 
 open Ast
@@ -38,7 +43,6 @@ let gamma0_sch = [
     ("+", Forall(Set.empty, TyArrow (TyInt, TyInt)))
     ("-", Forall(Set.empty, TyArrow (TyInt, TyInt)))
 
-    (*
     ("+.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
     ("-.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
     ("*.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
@@ -52,7 +56,6 @@ let gamma0_sch = [
     ("<>.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyBool))))
     ("+.", Forall(Set.empty, TyArrow (TyFloat, TyFloat)))
     ("-.", Forall(Set.empty, TyArrow (TyFloat, TyFloat)))
-    *)
 ]
 
 // Used in Unification and Type Inference
@@ -121,9 +124,23 @@ let freevars_scheme_env (env : scheme env) =
 // Composition
 //
 
+(*
+let compose_subst (s2 : subst) (s1 : subst) : subst =
+    printfn "Composing 2 substs\n"
+    printfn "%A\n" s2
+    printfn "%A\n" s1
+    let s3 = List.map (fun (tvs, t) -> (tvs, apply_subst s2 t)) s1
+    printfn "%A\n" s3
+    let s4 = s3 @ s2
+    printfn "%A\n" s4
+    s4
+*)
+
+
 let compose_subst (s2 : subst) (s1 : subst) : subst =
     let s3 = List.map (fun (tvs, t) -> (tvs, apply_subst s2 t)) s1
     s3 @ s2
+
 
 (*
 let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
@@ -156,6 +173,13 @@ let rec unify (t1 : ty) (t2 : ty) : subst = // (tyvar * ty) list
         type_error "cannot unify tuples of different length, %O and %O" t1 t2
     | _ -> type_error "cannot unify types %O and %O" t1 t2
 
+// Generalisation
+//
+
+let gen (env : scheme env) (t  : ty) : scheme = 
+    let tvs = Set.difference (freevars_ty t) (freevars_scheme_env env)
+    Forall (tvs, t)
+
 // Instantation
 //
 
@@ -171,17 +195,20 @@ let rec inst (Forall (tvs, t)) = // tvs = tyvar Set, t = ty
     let s = List.map (fun v -> (v, fresh())) (Set.toList toRefresh)
     apply_subst s t //apply_subst (s : subst) (t : ty)
 
-(*
-let rec inst (Forall (tvs, t)) =
+// original
+
+let rec inst2 (Forall (tvs, t)) =
     match t with
     | TyName _ -> t
-    | TyVar tv -> if (Set.contains(tv) tvs)
+    | TyVar tv -> printf "tvs set has: \n"
+                  tvs |> Seq.iter (printf "%d ")
+                  printf "\nTyvar t is '%d \n" tv
+                  if (Set.contains(tv) tvs)
                   then fresh()
                   else TyVar tv
     | TyArrow (t1, t2) -> TyArrow (inst (Forall (tvs, t1)), inst (Forall (tvs, t2)))
     | TyTuple ts -> let tuple = List.map (fun t2 -> inst (Forall (tvs, t2))) ts
                     TyTuple tuple
-*)
 
 // unexpected error: eval_expr: unsupported expression: ("hello",  3,  4) [AST: Tuple [Lit (LString "hello"); Lit (LInt 3); Lit (LFloat 4.0)]]
 // type inference
@@ -230,8 +257,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
                  | Some tyo1 -> compose_subst s0 (unify t1 tyo1)
                  | None -> s0
         let env1 = apply_subst_scheme_env s1 env
-        let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env1)
-        let sch = Forall (tvs, t1)
+        let sch = gen env1 t1
         let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
         let s3 = compose_subst s2 s1
         t2, s3
@@ -285,17 +311,18 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
                  | Some tyo1 -> compose_subst s0 (unify tyo1 t1)
                  | None -> s0
         let env1 = apply_subst_scheme_env s1 env
-        let tvs = Set.difference (freevars_ty t1) (freevars_scheme_env env1)
-        let sch1 = Forall (tvs, t1)
+        let sch1 = gen env1 t1
         let t2, s2 = typeinfer_expr ((f, sch1) :: env) e2
         let s3 = compose_subst s2 s1
         t2, s3
     
     | BinOp (e1, ("+" | "-" | "/" | "%" | "*" | "<" | "<=" | ">" | ">=" | "=" | "<>" | "and" | "or" as op), e2) ->
         typeinfer_expr env (App (App (Var op, e1), e2))
+    | BinOp (e1, ("+." | "-." | "/." | "%." | "*." | "<." | "<=." | ">." | ">=." | "=." | "<>." as op), e2) ->
+        typeinfer_expr env (App (App (Var op, e1), e2))
     | BinOp (_, op, _) ->
         unexpected_error "typeinfer_expr: unsupported binary operator (%s)" op
-    | UnOp ("not" | "-" as op, e) ->
+    | UnOp ("not" | "-" | "-." as op, e) ->
         typeinfer_expr env (App (Var op, e))
     | UnOp (op, _) ->
         unexpected_error "typeinfer_expr: unsupported unary operator (%s)" op

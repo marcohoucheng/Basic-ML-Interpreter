@@ -153,7 +153,8 @@ let rec pretty_expr e =
     | Lambda (x, None, e) -> sprintf "fun %s -> %s" x (pretty_expr e)
     | Lambda (x, Some t, e) -> sprintf "fun (%s : %s) -> %s" x (pretty_ty t) (pretty_expr e)
     
-    | App (e1, e2) -> sprintf "%s %s" (pretty_expr e1) (pretty_expr e2)
+    // TODO pattern-match sub-application cases
+    | App (e1, e2) -> pretty_app (e1, e2) // sprintf "%s %s" (pretty_expr e1) (pretty_expr e2)
 
     | Var x -> x
 
@@ -183,6 +184,18 @@ let rec pretty_expr e =
     | UnOp (op, e) -> sprintf "%s %s" op (pretty_expr e)
     
     | _ -> unexpected_error "pretty_expr: %s" (pretty_expr e)
+
+and pretty_app (e1, e2) =
+    let s1 = match e1 with
+             | Var _
+             | Lit _ -> pretty_expr e1
+             | App (e11, e12) -> sprintf "(%s)" (pretty_app (e11, e12))
+             | _ -> sprintf "(%s)" (pretty_expr e1)
+    let s2 = match e2 with
+             | Var _s
+             | Lit _ -> pretty_expr e2
+             | _ -> sprintf "(%s)" (pretty_expr e2)
+    sprintf "%s %s" s1 s2
 
 let rec pretty_value v =
     match v with
