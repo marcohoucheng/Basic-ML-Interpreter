@@ -42,7 +42,7 @@ let gamma0_sch = [
     ("not", Forall(Set.empty, TyArrow (TyBool, TyBool)))
     ("+", Forall(Set.empty, TyArrow (TyInt, TyInt)))
     ("-", Forall(Set.empty, TyArrow (TyInt, TyInt)))
-
+    (*
     ("+.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
     ("-.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
     ("*.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyFloat))))
@@ -56,6 +56,7 @@ let gamma0_sch = [
     ("<>.", Forall(Set.empty, TyArrow (TyFloat, TyArrow (TyFloat, TyBool))))
     ("+.", Forall(Set.empty, TyArrow (TyFloat, TyFloat)))
     ("-.", Forall(Set.empty, TyArrow (TyFloat, TyFloat)))
+    *)
 ]
 
 // Used in Unification and Type Inference
@@ -116,31 +117,17 @@ let rec freevars_ty t = // return a set
     // | TyTuple ts -> List.fold (fun r t -> r + freevars_ty t) Set.empty ts
     | TyTuple ts -> List.fold (fun set t -> Set.union set (freevars_ty t)) Set.empty ts
 
-let freevars_scheme (Forall (tvs, t)) = Set.difference (freevars_ty t) tvs
+let freevars_scheme (Forall (tvs, t)) = Set.difference (freevars_ty t) tvs // set1 \ set2
 
 let freevars_scheme_env (env : scheme env) =
-    List.fold (fun r (_, sch) -> r + freevars_scheme sch) Set.empty env
+    List.fold (fun set (_, sch) -> Set.union set (freevars_scheme sch)) Set.empty env
 
 // Composition
 //
 
-(*
-let compose_subst (s2 : subst) (s1 : subst) : subst =
-    printfn "Composing 2 substs\n"
-    printfn "%A\n" s2
-    printfn "%A\n" s1
-    let s3 = List.map (fun (tvs, t) -> (tvs, apply_subst s2 t)) s1
-    printfn "%A\n" s3
-    let s4 = s3 @ s2
-    printfn "%A\n" s4
-    s4
-*)
-
-
 let compose_subst (s2 : subst) (s1 : subst) : subst =
     let s3 = List.map (fun (tvs, t) -> (tvs, apply_subst s2 t)) s1
     s3 @ s2
-
 
 (*
 let compose_subst (s2 : subst) (s1 : subst) : subst =  // s2 @ s1
@@ -162,7 +149,7 @@ let rec unify (t1 : ty) (t2 : ty) : subst = // (tyvar * ty) list
     | TyName s1, TyName s2 when check_type t1 t2 < 2 -> [] // Only Int and Float
     | TyVar tv, t
     | t, TyVar tv -> [tv, t]
-    | TyArrow (t1, t2), TyArrow (t3, t4) ->
+    | TyArrow (t1, t2), TyArrow (t3, t4) -> // compose_subst (unify t1 t3) (unify t2 t4)
         let s = unify t1 t3
         let t5 = apply_subst s t2
         let t6 = apply_subst s t4
@@ -183,7 +170,7 @@ let gen (env : scheme env) (t  : ty) : scheme =
 // Instantation
 //
 
-let mutable counter = -1
+let mutable counter = 0
 
 let fresh() : ty =
     counter <- counter + 1
@@ -191,7 +178,6 @@ let fresh() : ty =
 
 let rec inst (Forall (tvs, t)) = // tvs = tyvar Set, t = ty
     let toRefresh = Set.intersect (freevars_ty t) (Set tvs)
-    // let s = List.map (fun v -> (v, fresh())) (List.sort (Set.toList toRefresh))
     let s = List.map (fun v -> (v, fresh())) (Set.toList toRefresh)
     apply_subst s t //apply_subst (s : subst) (t : ty)
 
@@ -230,6 +216,8 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         | None -> type_error "No scheme available for the variable %O\n" x
         | Some (_, sch) -> inst(sch), []
 
+        // Top = My implementation
+    
     | Lambda (x, tyo, e) ->
         let tyo1 = match tyo with
                    | Some tyo1 -> tyo1
@@ -240,7 +228,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t1 = apply_subst s1 tyo1
         let t = TyArrow(t1, t2)
         t, s1
-        
+
     | App (e1, e2) ->
         let t1, s1 = typeinfer_expr env e1
         let env1 = apply_subst_scheme_env s1 env
@@ -248,9 +236,9 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let alpha = fresh()
         let s3 = unify t1 (TyArrow(t2, alpha))
         let t = apply_subst s3 alpha
-        let s4 = compose_subst s3 s2
+        let s4 = compose_subst s3 (compose_subst s2 s1)
         t, s4
-    
+  
     | Let (x, tyo, e1, e2) ->
         let t1, s0 = typeinfer_expr env e1
         let s1 = match tyo with
@@ -261,7 +249,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t2, s2 = typeinfer_expr ((x, sch) :: env) e2
         let s3 = compose_subst s2 s1
         t2, s3
-    
+
     | IfThenElse (e1, e2, e3o) ->
         let t1, s1 = typeinfer_expr env e1
         let s2 = unify t1 TyBool
@@ -292,17 +280,7 @@ let rec typeinfer_expr (env : scheme env) (e : expr) : ty * subst =
         let t, s = List.fold f ([], []) es
         TyTuple t, s
 
-    (*
-    | Tuple es ->
-        let f (t, s) e =
-            let env = apply_subst_scheme_env s env
-            let t1, s1 = typeinfer_expr env e
-            // cannot use :: because LHS may not be a single element
-            t @ List.singleton(apply_subst s1 t1), compose_subst s1 s
-        let t, s = List.fold f ([], []) es
-        TyTuple t, s
-    *)
-
+    
     | LetRec (f, tyo, e1, e2) ->
         let alpha = fresh()
         let sch = Forall (Set.empty, alpha)
