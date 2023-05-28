@@ -1,3 +1,14 @@
+// Practics code:
+// - Find maximum of list
+// - Replicate 3 5 returns [5,5,5]
+// - Take 3 [5,4,3,2,1] will return [5,4,3]
+// - Reverse list
+// - QuickSort
+// - ApplyTwice f x = f (f x)
+// - Left and right fold
+// - How to make type (tree etc)
+// - Polymorphism
+
 // fib n = nth fib seq number
 
 let rec fib n =
@@ -89,6 +100,45 @@ List.head (List.filter (fun x -> x % 2 = 0) [1 .. 10])
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+// filter : ('a -> bool) -> 'a list -> 'a list
+let rec filter f l =
+    match l with
+    | [] -> []
+    | x :: xs -> if f x then x :: filter f xs else filter f xs
+
+let ex1 = filter (fun x -> x > 5) [1 .. 30]
+
+let ex2 = filter id (Map.map (fun x -> x < 10) [1 .. 20])
+
+let rec sum_ints l =
+    match l with 
+    | [] -> 0
+    | x :: xs -> x + sum_ints xs
+
+let rec sum plus zero l =
+    match l with 
+    | [] -> zero
+    | x :: xs -> plus x (sum plus zero xs)
+
+let ex1 = sum (+) 0. [1.0; 2.22; 67.34]
+
+let ex2 = sum (+) 0 [1 .. 20]
+
+let ex3 = sum (+) "" ["ciao"; "pippo"; "baudo"]
+
+let ex4 = sum (fun a b -> a || b) false [true; false; true; false]
+
+// iter : ('a -> unit) -> 'a list -> unit
+let rec iter f l =
+   match l with 
+   | [] -> ()
+   | x :: xs -> f x; iter f xs
+
+let () = iter (fun n -> printf "%d\n" n) [1 .. 20]
+
+// r : unit list
+let r = Map.map (fun n -> printf "%d\n" n) [1 .. 20]
+
 module Fold =
     
     let rec foldR f z l =
@@ -126,9 +176,6 @@ module Fold =
             | Some y -> if cmp x y then Some y else Some x
         foldL f None l
 
-
-
-
     let r1 = foldL (fun z x -> x + z) 0 [1 .. 20] 
 
     let l2 = [1; 2; 3] @ [4; 5; 6]
@@ -137,26 +184,6 @@ module Fold =
     let s2 = foldR (+) "" ["a"; "b"; "c"]   // "cba"
 
     let factorial n = foldL ( * ) 1 [1 .. n]
-
-
-    (*
-    public static <A, B> List<B> map(Iterable<A> c, Function<A, B> f) {
-        List<B> out = new ArrayList<>();
-        for (A a : c)
-            out.add(f.apply(a));
-        return out;
-    }
-
-    template <class A, class B, class F>
-    vector<B> map(const vector<A>& v, const F& f) {
-        vector<B> r;
-        for (auto x : v)
-            r.push_back(f(x));
-        return r;
-    }
-    *)
-
-
 
 //// Trees
 
@@ -263,4 +290,3 @@ module OtherTree =
             let l = pretty_opt pretty_tree lo
             let r = pretty_opt pretty_tree ro
             sprintf "(%s %s %s)" l x r
-
