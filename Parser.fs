@@ -40,6 +40,16 @@ type token =
   | GEQ
   | EQ
   | NEQ
+  | PLUS_FLOAT
+  | MINUS_FLOAT
+  | STAR_FLOAT
+  | SLASH_FLOAT
+  | LT_FLOAT
+  | GT_FLOAT
+  | LEQ_FLOAT
+  | GEQ_FLOAT
+  | EQ_FLOAT
+  | NEQ_FLOAT
   | AND
   | OR
   | NOT
@@ -77,6 +87,16 @@ type tokenId =
     | TOKEN_GEQ
     | TOKEN_EQ
     | TOKEN_NEQ
+    | TOKEN_PLUS_FLOAT
+    | TOKEN_MINUS_FLOAT
+    | TOKEN_STAR_FLOAT
+    | TOKEN_SLASH_FLOAT
+    | TOKEN_LT_FLOAT
+    | TOKEN_GT_FLOAT
+    | TOKEN_LEQ_FLOAT
+    | TOKEN_GEQ_FLOAT
+    | TOKEN_EQ_FLOAT
+    | TOKEN_NEQ_FLOAT
     | TOKEN_AND
     | TOKEN_OR
     | TOKEN_NOT
@@ -143,6 +163,16 @@ let tagOfToken (t:token) =
   | CHAR _ -> 32 
   | FLOAT _ -> 33 
   | INT _ -> 34 
+  | PLUS_FLOAT  -> 35
+  | MINUS_FLOAT  -> 36 
+  | STAR_FLOAT  -> 37
+  | SLASH_FLOAT  -> 38 
+  | LT_FLOAT  -> 39
+  | GT_FLOAT  -> 40 
+  | LEQ_FLOAT  -> 41 
+  | GEQ_FLOAT  -> 42 
+  | EQ_FLOAT  -> 43
+  | NEQ_FLOAT  -> 44 
 
 // This function maps integer indexes to symbolic token ids
 let tokenTagToTokenId (tokenIdx:int) = 
@@ -181,9 +211,19 @@ let tokenTagToTokenId (tokenIdx:int) =
   | 31 -> TOKEN_ID 
   | 32 -> TOKEN_CHAR 
   | 33 -> TOKEN_FLOAT 
-  | 34 -> TOKEN_INT 
-  | 37 -> TOKEN_end_of_input
-  | 35 -> TOKEN_error
+  | 34 -> TOKEN_INT
+  | 35 -> TOKEN_PLUS_FLOAT
+  | 36 -> TOKEN_MINUS_FLOAT
+  | 37 -> TOKEN_STAR_FLOAT
+  | 38 -> TOKEN_SLASH_FLOAT
+  | 39 -> TOKEN_LT_FLOAT
+  | 40 -> TOKEN_GT_FLOAT
+  | 41 -> TOKEN_LEQ_FLOAT
+  | 42 -> TOKEN_GEQ_FLOAT
+  | 43 -> TOKEN_EQ_FLOAT
+  | 44 -> TOKEN_NEQ_FLOAT
+  | 45 -> TOKEN_end_of_input
+  | 46 -> TOKEN_error
   | _ -> failwith "tokenTagToTokenId: bad token"
 
 /// This function maps production indexes returned in syntax errors to strings representing the non terminal that would be produced by that production
@@ -238,19 +278,29 @@ let prodIdxToNonTerminal (prodIdx:int) =
     | 46 -> NONTERM_expr_tuple_atom 
     | 47 -> NONTERM_expr_tuple_atom 
     | 48 -> NONTERM_expr_tuple_atom 
-    | 49 -> NONTERM_expr_tuple_atom 
-    | 50 -> NONTERM_expr_tuple_atoms 
-    | 51 -> NONTERM_expr_tuple_atoms 
-    | 52 -> NONTERM_ty 
-    | 53 -> NONTERM_ty 
-    | 54 -> NONTERM_ty 
-    | 55 -> NONTERM_ty 
-    | 56 -> NONTERM_ty_tuple 
-    | 57 -> NONTERM_ty_tuple 
+    | 49 -> NONTERM_expr_tuple_atom
+    | 50 -> NONTERM_expr_tuple_atom 
+    | 51 -> NONTERM_expr_tuple_atom 
+    | 52 -> NONTERM_expr_tuple_atom 
+    | 53 -> NONTERM_expr_tuple_atom 
+    | 54 -> NONTERM_expr_tuple_atom 
+    | 55 -> NONTERM_expr_tuple_atom 
+    | 56 -> NONTERM_expr_tuple_atom 
+    | 57 -> NONTERM_expr_tuple_atom 
+    | 58 -> NONTERM_expr_tuple_atom 
+    | 59 -> NONTERM_expr_tuple_atom 
+    | 60 -> NONTERM_expr_tuple_atoms 
+    | 61 -> NONTERM_expr_tuple_atoms 
+    | 62 -> NONTERM_ty 
+    | 63 -> NONTERM_ty 
+    | 64 -> NONTERM_ty 
+    | 65 -> NONTERM_ty 
+    | 66 -> NONTERM_ty_tuple 
+    | 67 -> NONTERM_ty_tuple 
     | _ -> failwith "prodIdxToNonTerminal: bad production index"
 
-let _fsyacc_endOfInputTag = 37 
-let _fsyacc_tagOfErrorTerminal = 35
+let _fsyacc_endOfInputTag = 45
+let _fsyacc_tagOfErrorTerminal = 46
 
 // This function gets the name of a token as a string
 let token_to_string (t:token) = 
@@ -289,7 +339,17 @@ let token_to_string (t:token) =
   | ID _ -> "ID" 
   | CHAR _ -> "CHAR" 
   | FLOAT _ -> "FLOAT" 
-  | INT _ -> "INT" 
+  | INT _ -> "INT"
+  | PLUS_FLOAT  -> "PLUS_FLOAT" 
+  | MINUS_FLOAT  -> "MINUS_FLOAT" 
+  | STAR_FLOAT  -> "STAR_FLOAT" 
+  | SLASH_FLOAT  -> "SLASH_FLOAT"
+  | LT_FLOAT  -> "LT_FLOAT" 
+  | GT_FLOAT  -> "GT_FLOAT" 
+  | LEQ_FLOAT  -> "LEQ_FLOAT" 
+  | GEQ_FLOAT  -> "GEQ_FLOAT" 
+  | EQ_FLOAT  -> "EQ_FLOAT" 
+  | NEQ_FLOAT  -> "NEQ_FLOAT" 
 
 // This function gets the data carried by a token as an object
 let _fsyacc_dataOfToken (t:token) = 
@@ -317,7 +377,17 @@ let _fsyacc_dataOfToken (t:token) =
   | LEQ  -> (null : System.Object) 
   | GEQ  -> (null : System.Object) 
   | EQ  -> (null : System.Object) 
-  | NEQ  -> (null : System.Object) 
+  | NEQ  -> (null : System.Object)
+  | PLUS_FLOAT  -> (null : System.Object) 
+  | MINUS_FLOAT  -> (null : System.Object) 
+  | STAR_FLOAT  -> (null : System.Object) 
+  | SLASH_FLOAT  -> (null : System.Object) 
+  | LT_FLOAT  -> (null : System.Object) 
+  | GT_FLOAT  -> (null : System.Object) 
+  | LEQ_FLOAT  -> (null : System.Object) 
+  | GEQ_FLOAT  -> (null : System.Object) 
+  | EQ_FLOAT  -> (null : System.Object) 
+  | NEQ_FLOAT  -> (null : System.Object) 
   | AND  -> (null : System.Object) 
   | OR  -> (null : System.Object) 
   | NOT  -> (null : System.Object) 

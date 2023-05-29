@@ -1,4 +1,4 @@
-// Practics code:
+// Practice code:
 // - Find maximum of list
 // - Replicate 3 5 returns [5,5,5]
 // - Take 3 [5,4,3,2,1] will return [5,4,3]
@@ -290,3 +290,53 @@ module OtherTree =
             let l = pretty_opt pretty_tree lo
             let r = pretty_opt pretty_tree ro
             sprintf "(%s %s %s)" l x r
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+List.fold (+) "0" ["a"; "b"; "c"] //"0abc"
+List.foldBack (+) ["a"; "b"; "c"] "0" //"abc0"
+List.foldBack (+) (List.rev ["a"; "b"; "c"]) "0" //"cba0"
+
+let l = [1; 3; 8; 3; 2; 6]
+
+let rec find_max d l =
+    match l with
+    | [] -> d
+    | x :: xs -> if x > d then (find_max x xs) else (find_max d xs)
+
+find_max 0 l
+find_max 0 (List.append l [20])
+
+// Trees
+
+type 'a tree =
+    | Node of 'a tree * 'a tree
+    | Leaf of 'a option
+
+let rec sum_int_tree t =
+    match t with
+    | Leaf (Some x) -> x
+    | Leaf None -> 0
+    | Node (t1, t2) -> sum_int_tree t1 + sum_int_tree t2
+
+let rec sum_tree op zero t =
+    match t with
+    | Leaf (Some x) -> x
+    | Leaf None -> zero
+    | Node (t1, t2) -> sum_tree op zero t1 + sum_tree op zero t2
+
+// First n Prime
+
+let rec is_prime_dummy i x =
+    if i * i > x then true
+    elif x % i = 0 then false
+    else is_prime_dummy (i + 1) x
+
+let is_prime x = is_prime_dummy 2 x
+
+let first_n_primes n =
+    let rec loop i acc =
+        if List.length acc = n then return acc
+        elif is_prime i then loop (i + 1) (i :: acc)
+        else loop (i + 1) acc
+    return List.rev (loop 2 [])

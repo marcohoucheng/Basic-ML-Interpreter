@@ -25,6 +25,16 @@ type token =
   | GEQ
   | EQ
   | NEQ
+  | PLUS_FLOAT
+  | MINUS_FLOAT
+  | STAR_FLOAT
+  | SLASH_FLOAT
+  | LT_FLOAT
+  | GT_FLOAT
+  | LEQ_FLOAT
+  | GEQ_FLOAT
+  | EQ_FLOAT
+  | NEQ_FLOAT
   | AND
   | OR
   | NOT
@@ -61,6 +71,16 @@ type tokenId =
     | TOKEN_GEQ
     | TOKEN_EQ
     | TOKEN_NEQ
+    | TOKEN_PLUS_FLOAT
+    | TOKEN_MINUS_FLOAT
+    | TOKEN_STAR_FLOAT
+    | TOKEN_SLASH_FLOAT
+    | TOKEN_LT_FLOAT
+    | TOKEN_GT_FLOAT
+    | TOKEN_LEQ_FLOAT
+    | TOKEN_GEQ_FLOAT
+    | TOKEN_EQ_FLOAT
+    | TOKEN_NEQ_FLOAT
     | TOKEN_AND
     | TOKEN_OR
     | TOKEN_NOT
