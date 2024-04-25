@@ -8,7 +8,7 @@ It is an implementation of a basic ML language interpreter written in F\#. This 
 
 The interpreter can be ran on Visual Studios on Windows. ML language commands can be entered via the `test.tml` file or through the cmd window. Some example codes are as follows:
 
-`
+```
 let f x y = (x, y) in
 let g x = f x x
 in ()
@@ -21,4 +21,4 @@ let y = 8. in
 let f = x * 2 + y in
 let z = f > 0
 in (z)
-`
+```
